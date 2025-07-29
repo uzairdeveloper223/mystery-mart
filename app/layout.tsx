@@ -4,6 +4,8 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/providers/theme-provider"
 import { AuthProvider } from "@/components/providers/auth-provider"
+import { CartProvider } from "@/hooks/use-cart"
+import { WishlistProvider } from "@/hooks/use-wishlist"
 import { MaintenanceCheck } from "@/components/maintenance-check"
 import { Toaster } from "@/components/ui/toaster"
 
@@ -47,7 +49,11 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
-            <MaintenanceCheck>{children}</MaintenanceCheck>
+            <CartProvider>
+              <WishlistProvider>
+                <MaintenanceCheck>{children}</MaintenanceCheck>
+              </WishlistProvider>
+            </CartProvider>
           </AuthProvider>
           <Toaster />
         </ThemeProvider>
