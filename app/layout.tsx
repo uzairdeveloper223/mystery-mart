@@ -20,6 +20,15 @@ export const metadata: Metadata = {
   creator: "Mystery Mart",
   publisher: "Mystery Mart",
   robots: "index, follow",
+  icons: {
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" }
+    ],
+    apple: [
+      { url: "/logo.svg", type: "image/svg+xml" }
+    ]
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -28,6 +37,14 @@ export const metadata: Metadata = {
     description:
       "Discover amazing mystery boxes filled with surprises. Buy, sell, and trade mystery boxes with our community.",
     siteName: "Mystery Mart",
+    images: [
+      {
+        url: "/logo.svg",
+        width: 120,
+        height: 120,
+        alt: "Mystery Mart Logo"
+      }
+    ]
   },
   twitter: {
     card: "summary_large_image",
@@ -35,6 +52,7 @@ export const metadata: Metadata = {
     description:
       "Discover amazing mystery boxes filled with surprises. Buy, sell, and trade mystery boxes with our community.",
     creator: "@mughal_x22",
+    images: ["/logo.svg"]
   },
     generator: 'Uzair'
 }
