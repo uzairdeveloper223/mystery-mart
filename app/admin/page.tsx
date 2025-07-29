@@ -108,16 +108,36 @@ export default function AdminPage() {
         FirebaseService.getPlatformSettings(),
       ])
 
-      setStats(platformStats)
-      setVerificationRequests(pendingVerifications)
-      setSellerApplications(pendingSellerApps)
-      setReports(activeReports)
-      setAdminMessages(pendingMessages)
-      setAllUsers(users)
-      setAllBoxes(boxes)
+      setStats(platformStats || {
+        totalUsers: 0,
+        totalBoxes: 0,
+        pendingVerifications: 0,
+        totalRevenue: 0,
+        activeReports: 0,
+        pendingSellerRequests: 0,
+        totalDonations: 0,
+        bannedUsers: 0,
+        activeBoxes: 0,
+        pendingBoxes: 0,
+      })
+      setVerificationRequests(pendingVerifications || [])
+      setSellerApplications(pendingSellerApps || [])
+      setReports(activeReports || [])
+      setAdminMessages(pendingMessages || [])
+      setAllUsers(users || [])
+      setAllBoxes(boxes || [])
       setPlatformSettings(settings)
     } catch (error) {
       console.error("Failed to fetch admin data:", error)
+      
+      // Ensure arrays are still empty arrays on error
+      setVerificationRequests([])
+      setSellerApplications([])
+      setReports([])
+      setAdminMessages([])
+      setAllUsers([])
+      setAllBoxes([])
+      
       toast({
         title: "Error",
         description: "Failed to load admin data",
@@ -391,12 +411,12 @@ export default function AdminPage() {
         <Tabs defaultValue="platform-settings" className="space-y-6">
           <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="platform-settings">Settings</TabsTrigger>
-            <TabsTrigger value="seller-applications">Sellers ({sellerApplications.length})</TabsTrigger>
-            <TabsTrigger value="verifications">Verify ({verificationRequests.length})</TabsTrigger>
+            <TabsTrigger value="seller-applications">Sellers ({sellerApplications?.length || 0})</TabsTrigger>
+            <TabsTrigger value="verifications">Verify ({verificationRequests?.length || 0})</TabsTrigger>
             <TabsTrigger value="box-moderation">Boxes ({stats.pendingBoxes})</TabsTrigger>
             <TabsTrigger value="user-management">Users</TabsTrigger>
-            <TabsTrigger value="messages">Messages ({adminMessages.length})</TabsTrigger>
-            <TabsTrigger value="reports">Reports ({reports.length})</TabsTrigger>
+            <TabsTrigger value="messages">Messages ({adminMessages?.length || 0})</TabsTrigger>
+            <TabsTrigger value="reports">Reports ({reports?.length || 0})</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
@@ -546,7 +566,7 @@ export default function AdminPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {sellerApplications.length > 0 ? (
+                  {sellerApplications && sellerApplications.length > 0 ? (
                     sellerApplications.map((application) => (
                       <div key={application.id} className="border rounded-lg p-6">
                         <div className="flex items-start justify-between mb-4">
@@ -583,7 +603,7 @@ export default function AdminPage() {
                           <div>
                             <p className="text-sm font-medium">Categories:</p>
                             <div className="flex flex-wrap gap-1 mt-1">
-                              {application.businessInfo.categories.map((category) => (
+                              {application.businessInfo.categories?.map((category) => (
                                 <Badge key={category} variant="outline" className="text-xs">
                                   {category}
                                 </Badge>
@@ -650,7 +670,7 @@ export default function AdminPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {verificationRequests.length > 0 ? (
+                  {verificationRequests && verificationRequests.length > 0 ? (
                     verificationRequests.map((request) => (
                       <div key={request.id} className="border rounded-lg p-6">
                         <div className="flex items-start justify-between mb-4">
@@ -721,7 +741,7 @@ export default function AdminPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {allBoxes.filter((box) => box.status === "pending").length > 0 ? (
+                  {allBoxes && allBoxes.filter((box) => box.status === "pending").length > 0 ? (
                     allBoxes
                       .filter((box) => box.status === "pending")
                       .map((box) => (
@@ -741,7 +761,7 @@ export default function AdminPage() {
                             </div>
                             <div className="flex flex-col gap-2 ml-4">
                               <Badge variant="secondary">{box.status}</Badge>
-                              {box.images.length > 0 && (
+                              {box.images && box.images.length > 0 && (
                                 <img
                                   src={box.images[0] || "/placeholder.svg"}
                                   alt={box.title}
@@ -827,7 +847,7 @@ export default function AdminPage() {
                   </div>
 
                   <div className="space-y-3">
-                    {allUsers.slice(0, 20).map((user) => (
+                    {allUsers && allUsers.slice(0, 20).map((user) => (
                       <div key={user.uid} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
@@ -899,7 +919,7 @@ export default function AdminPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {adminMessages.length > 0 ? (
+                  {adminMessages && adminMessages.length > 0 ? (
                     adminMessages.map((message) => (
                       <div key={message.id} className="border rounded-lg p-6">
                         <div className="flex items-start justify-between mb-4">
@@ -931,7 +951,7 @@ export default function AdminPage() {
                           <p className="text-sm text-muted-foreground bg-muted p-3 rounded">{message.content}</p>
                         </div>
 
-                        {message.responses.length > 0 && (
+                        {message.responses && message.responses.length > 0 && (
                           <div className="mb-4">
                             <p className="text-sm font-medium mb-2">Conversation:</p>
                             <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -998,7 +1018,7 @@ export default function AdminPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {reports.length > 0 ? (
+                  {reports && reports.length > 0 ? (
                     reports.map((report) => (
                       <div key={report.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-1">
