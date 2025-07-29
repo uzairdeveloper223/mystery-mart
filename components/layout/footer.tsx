@@ -105,15 +105,15 @@ export function Footer() {
             <div className="space-y-3 text-sm">
               <div className="flex items-center space-x-2 text-muted-foreground">
                 <Mail className="h-4 w-4" />
-                <span>support@mysterymart.com</span>
+                <span>uzairxdev223@gmail.com</span>
               </div>
               <div className="flex items-center space-x-2 text-muted-foreground">
                 <Phone className="h-4 w-4" />
-                <span>+1 (555) 123-4567</span>
+                <span>+92 316 0973694</span>
               </div>
               <div className="flex items-center space-x-2 text-muted-foreground">
                 <MapPin className="h-4 w-4" />
-                <span>123 Commerce St, Tech City, TC 12345</span>
+                <span>Mirpur, AJK</span>
               </div>
             </div>
 

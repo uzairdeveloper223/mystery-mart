@@ -860,9 +860,97 @@ export class FirebaseService {
     return Object.values(snapshot.val()) as Message[]
   }
 
-  static async markMessageAsRead(messageId: string): Promise<void> {
+  static async markMessageAsRead(messageId: string, userId: string): Promise<void> {
     const messageRef = ref(db, `${DB_PATHS.MESSAGES}/${messageId}`)
-    await update(messageRef, { status: "read" })
+    const messageSnapshot = await get(messageRef)
+    if (messageSnapshot.exists()) {
+      const message = messageSnapshot.val()
+      const readBy = message.readBy || []
+      if (!readBy.includes(userId)) {
+        readBy.push(userId)
+        await update(messageRef, { readBy, status: "read" })
+      }
+    }
+  }
+
+  static subscribeToUserConversations(userId: string, callback: (conversations: any[]) => void): () => void {
+    const conversationsRef = ref(db, DB_PATHS.CONVERSATIONS)
+    const conversationsQuery = query(conversationsRef, orderByChild(`participants/${userId}`), equalTo(true))
+    
+    const unsubscribe = onValue(conversationsQuery, (snapshot) => {
+      const conversations = snapshot.exists() ? Object.values(snapshot.val()) : []
+      callback(conversations)
+    })
+    
+    return unsubscribe
+  }
+
+  static subscribeToConversationMessages(conversationId: string, callback: (messages: Message[]) => void): () => void {
+    const messagesRef = ref(db, DB_PATHS.MESSAGES)
+    const messagesQuery = query(messagesRef, orderByChild("conversationId"), equalTo(conversationId))
+    
+    const unsubscribe = onValue(messagesQuery, (snapshot) => {
+      const messages = snapshot.exists() ? Object.values(snapshot.val()) as Message[] : []
+      callback(messages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()))
+    })
+    
+    return unsubscribe
+  }
+
+  static subscribeToOnlineUsers(callback: (userIds: string[]) => void): () => void {
+    const onlineUsersRef = ref(db, "onlineUsers")
+    
+    const unsubscribe = onValue(onlineUsersRef, (snapshot) => {
+      const onlineUsers = snapshot.exists() ? Object.keys(snapshot.val()) : []
+      callback(onlineUsers)
+    })
+    
+    return unsubscribe
+  }
+
+  static subscribeToTypingIndicators(conversationId: string, callback: (typingUserIds: string[]) => void): () => void {
+    const typingRef = ref(db, `typing/${conversationId}`)
+    
+    const unsubscribe = onValue(typingRef, (snapshot) => {
+      const typingData = snapshot.exists() ? snapshot.val() : {}
+      const typingUserIds = Object.keys(typingData).filter(userId => typingData[userId] === true)
+      callback(typingUserIds)
+    })
+    
+    return unsubscribe
+  }
+
+  static async setTypingStatus(conversationId: string, userId: string, isTyping: boolean): Promise<void> {
+    const typingRef = ref(db, `typing/${conversationId}/${userId}`)
+    if (isTyping) {
+      await set(typingRef, true)
+      // Auto-remove typing status after 3 seconds
+      setTimeout(() => {
+        set(typingRef, false)
+      }, 3000)
+    } else {
+      await set(typingRef, false)
+    }
+  }
+
+  static async createConversation(participant1Id: string, participant2Id: string): Promise<string> {
+    const conversationsRef = ref(db, DB_PATHS.CONVERSATIONS)
+    const newConversationRef = push(conversationsRef)
+    const conversationId = newConversationRef.key!
+
+    const conversationData = {
+      id: conversationId,
+      participants: {
+        [participant1Id]: true,
+        [participant2Id]: true,
+      },
+      createdAt: new Date().toISOString(),
+      lastMessageAt: new Date().toISOString(),
+      lastMessage: null,
+    }
+
+    await set(newConversationRef, conversationData)
+    return conversationId
   }
 
   // Notification operations
