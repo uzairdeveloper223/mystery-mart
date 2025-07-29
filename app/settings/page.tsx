@@ -15,11 +15,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { FirebaseService } from "@/lib/firebase-service"
 import { useToast } from "@/hooks/use-toast"
-import { User, Settings, Bell, MapPin, Shield, CheckCircle, Clock, X, Upload, Star, Award } from "lucide-react"
+import { User, Settings, Bell, MapPin, Shield, CheckCircle, Clock, X, Upload, Star, Award, Plus, Navigation } from "lucide-react"
 import type { Address } from "@/lib/types"
 
 export default function SettingsPage() {
@@ -32,6 +34,23 @@ export default function SettingsPage() {
   const [addresses, setAddresses] = useState<Address[]>([])
   const [showVerificationRequest, setShowVerificationRequest] = useState(false)
   const [verificationMessage, setVerificationMessage] = useState("")
+  
+  // Address management states
+  const [showAddressDialog, setShowAddressDialog] = useState(false)
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null)
+  const [addressLoading, setAddressLoading] = useState(false)
+  const [gpsLoading, setGpsLoading] = useState(false)
+  const [addressForm, setAddressForm] = useState({
+    fullName: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "",
+    phoneNumber: "",
+    isDefault: false,
+  })
 
   const [profileData, setProfileData] = useState({
     fullName: "",
@@ -230,6 +249,192 @@ export default function SettingsPage() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Address management functions
+  const openAddressDialog = (address?: Address) => {
+    if (address) {
+      setEditingAddress(address)
+      setAddressForm({
+        fullName: address.fullName,
+        addressLine1: address.addressLine1,
+        addressLine2: address.addressLine2 || "",
+        city: address.city,
+        state: address.state,
+        postalCode: address.postalCode,
+        country: address.country,
+        phoneNumber: address.phoneNumber,
+        isDefault: address.isDefault,
+      })
+    } else {
+      setEditingAddress(null)
+      setAddressForm({
+        fullName: user?.fullName || "",
+        addressLine1: "",
+        addressLine2: "",
+        city: "",
+        state: "",
+        postalCode: "",
+        country: "",
+        phoneNumber: "",
+        isDefault: false,
+      })
+    }
+    setShowAddressDialog(true)
+  }
+
+  const closeAddressDialog = () => {
+    setShowAddressDialog(false)
+    setEditingAddress(null)
+    setAddressForm({
+      fullName: "",
+      addressLine1: "",
+      addressLine2: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      country: "",
+      phoneNumber: "",
+      isDefault: false,
+    })
+  }
+
+  const getCurrentLocation = async () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "GPS Not Supported",
+        description: "Your browser doesn't support location services",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setGpsLoading(true)
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000,
+        })
+      })
+
+      const { latitude, longitude } = position.coords
+
+      // Use reverse geocoding to get address details using Nominatim (free OpenStreetMap service)
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+      )
+      
+      if (!response.ok) {
+        throw new Error("Failed to get address from coordinates")
+      }
+
+      const data = await response.json()
+      
+      if (data && data.address) {
+        const addr = data.address
+
+        setAddressForm(prev => ({
+          ...prev,
+          addressLine1: `${addr.house_number || ""} ${addr.road || addr.street || ""}`.trim(),
+          city: addr.city || addr.town || addr.village || addr.municipality || "",
+          state: addr.state || addr.province || addr.region || "",
+          postalCode: addr.postcode || "",
+          country: addr.country || "",
+        }))
+
+        toast({
+          title: "Location Found",
+          description: "Address details have been filled automatically",
+        })
+      } else {
+        // Fallback: Just show coordinates
+        setAddressForm(prev => ({
+          ...prev,
+          addressLine1: `Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`,
+        }))
+
+        toast({
+          title: "Location Found",
+          description: "Coordinates captured. Please fill in the address details manually.",
+        })
+      }
+    } catch (error) {
+      console.error("GPS Error:", error)
+      toast({
+        title: "Location Error",
+        description: "Could not get your current location. Please enter address manually.",
+        variant: "destructive",
+      })
+    } finally {
+      setGpsLoading(false)
+    }
+  }
+
+  const handleAddressSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+
+    setAddressLoading(true)
+    try {
+      if (editingAddress) {
+        // Update existing address
+        await FirebaseService.updateAddress(editingAddress.id, {
+          ...addressForm,
+          userId: user.uid,
+          updatedAt: new Date().toISOString(),
+        })
+        toast({
+          title: "Address Updated",
+          description: "Your address has been updated successfully",
+        })
+      } else {
+        // Create new address
+        await FirebaseService.createAddress({
+          ...addressForm,
+          userId: user.uid,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        toast({
+          title: "Address Added",
+          description: "Your address has been saved successfully",
+        })
+      }
+
+      await fetchAddresses()
+      closeAddressDialog()
+    } catch (error) {
+      console.error("Failed to save address:", error)
+      toast({
+        title: "Error",
+        description: "Failed to save address. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setAddressLoading(false)
+    }
+  }
+
+  const handleDeleteAddress = async (addressId: string) => {
+    if (!user) return
+
+    try {
+      await FirebaseService.deleteAddress(addressId)
+      toast({
+        title: "Address Deleted",
+        description: "The address has been removed from your account",
+      })
+      await fetchAddresses()
+    } catch (error) {
+      console.error("Failed to delete address:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete address. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -646,6 +851,16 @@ export default function SettingsPage() {
                 <CardContent>
                   {addresses.length > 0 ? (
                     <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold">Your Addresses</h3>
+                        <Button 
+                          onClick={() => openAddressDialog()}
+                          className="mystery-gradient text-white"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Address
+                        </Button>
+                      </div>
                       {addresses.map((address) => (
                         <div key={address.id} className="p-4 border rounded-lg">
                           <div className="flex items-start justify-between">
@@ -663,10 +878,18 @@ export default function SettingsPage() {
                               {address.isDefault && <Badge className="mt-2">Default</Badge>}
                             </div>
                             <div className="flex space-x-2">
-                              <Button size="sm" variant="outline">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => openAddressDialog(address)}
+                              >
                                 Edit
                               </Button>
-                              <Button size="sm" variant="destructive">
+                              <Button 
+                                size="sm" 
+                                variant="destructive"
+                                onClick={() => handleDeleteAddress(address.id)}
+                              >
                                 Delete
                               </Button>
                             </div>
@@ -678,11 +901,175 @@ export default function SettingsPage() {
                     <div className="text-center py-8">
                       <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                       <p className="text-muted-foreground mb-4">No addresses saved</p>
-                      <Button className="mystery-gradient text-white">Add Address</Button>
+                      <Button 
+                        onClick={() => openAddressDialog()}
+                        className="mystery-gradient text-white"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Address
+                      </Button>
                     </div>
                   )}
                 </CardContent>
               </Card>
+
+              {/* Address Dialog */}
+              <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingAddress ? "Edit Address" : "Add New Address"}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {editingAddress 
+                        ? "Update your shipping address details" 
+                        : "Add a new shipping address to your account"
+                      }
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <form onSubmit={handleAddressSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <Label htmlFor="fullName">Full Name</Label>
+                        <Input
+                          id="fullName"
+                          value={addressForm.fullName}
+                          onChange={(e) => setAddressForm(prev => ({ ...prev, fullName: e.target.value }))}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="addressLine1">Address Line 1</Label>
+                        <Input
+                          id="addressLine1"
+                          value={addressForm.addressLine1}
+                          onChange={(e) => setAddressForm(prev => ({ ...prev, addressLine1: e.target.value }))}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="addressLine2">Address Line 2 (Optional)</Label>
+                        <Input
+                          id="addressLine2"
+                          value={addressForm.addressLine2}
+                          onChange={(e) => setAddressForm(prev => ({ ...prev, addressLine2: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="city">City</Label>
+                          <Input
+                            id="city"
+                            value={addressForm.city}
+                            onChange={(e) => setAddressForm(prev => ({ ...prev, city: e.target.value }))}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="state">State/Province</Label>
+                          <Input
+                            id="state"
+                            value={addressForm.state}
+                            onChange={(e) => setAddressForm(prev => ({ ...prev, state: e.target.value }))}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="postalCode">Postal Code</Label>
+                          <Input
+                            id="postalCode"
+                            value={addressForm.postalCode}
+                            onChange={(e) => setAddressForm(prev => ({ ...prev, postalCode: e.target.value }))}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="country">Country</Label>
+                          <Select
+                            value={addressForm.country}
+                            onValueChange={(value) => setAddressForm(prev => ({ ...prev, country: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select country" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="US">United States</SelectItem>
+                              <SelectItem value="CA">Canada</SelectItem>
+                              <SelectItem value="GB">United Kingdom</SelectItem>
+                              <SelectItem value="AU">Australia</SelectItem>
+                              <SelectItem value="DE">Germany</SelectItem>
+                              <SelectItem value="FR">France</SelectItem>
+                              <SelectItem value="JP">Japan</SelectItem>
+                              <SelectItem value="IN">India</SelectItem>
+                              <SelectItem value="BR">Brazil</SelectItem>
+                              <SelectItem value="MX">Mexico</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="phoneNumber">Phone Number</Label>
+                        <Input
+                          id="phoneNumber"
+                          type="tel"
+                          value={addressForm.phoneNumber}
+                          onChange={(e) => setAddressForm(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                          required
+                        />
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="isDefault"
+                          checked={addressForm.isDefault}
+                          onCheckedChange={(checked) => setAddressForm(prev => ({ ...prev, isDefault: checked }))}
+                        />
+                        <Label htmlFor="isDefault">Set as default address</Label>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={getCurrentLocation}
+                          disabled={gpsLoading}
+                          className="flex-1"
+                        >
+                          {gpsLoading ? (
+                            <Clock className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Navigation className="h-4 w-4 mr-2" />
+                          )}
+                          {gpsLoading ? "Getting Location..." : "Use Current Location"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={closeAddressDialog}
+                          disabled={addressLoading}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={addressLoading}
+                          className="mystery-gradient text-white"
+                        >
+                          {addressLoading ? "Saving..." : editingAddress ? "Update" : "Add"} Address
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </TabsContent>
 
             <TabsContent value="security">

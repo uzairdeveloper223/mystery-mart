@@ -19,10 +19,6 @@ import { useToast } from "@/hooks/use-toast"
 import {
   Send,
   Search,
-  MoreVertical,
-  Phone,
-  Video,
-  Info,
   ArrowLeft,
   MessageCircle,
   Clock,
@@ -337,7 +333,9 @@ export default function MessagesPage() {
                                   src={otherParticipant?.profilePicture || "/placeholder.svg"}
                                   alt={otherParticipant?.fullName || otherParticipant?.username || "User"}
                                 />
-                                <AvatarFallback>{(otherParticipant?.fullName || otherParticipant?.username)?.charAt(0) || "U"}</AvatarFallback>
+                                <AvatarFallback>
+                                  {((otherParticipant?.fullName || otherParticipant?.username) || "Unknown")?.charAt(0) || "U"}
+                                </AvatarFallback>
                               </Avatar>
                               {isOnline && (
                                 <motion.div
@@ -408,42 +406,28 @@ export default function MessagesPage() {
                         <Avatar className="h-10 w-10">
                           <AvatarImage
                             src={getOtherParticipant(activeConversation)?.profilePicture || "/placeholder.svg"}
-                            alt={getOtherParticipant(activeConversation)?.displayName || "User"}
+                            alt={getOtherParticipant(activeConversation)?.fullName || getOtherParticipant(activeConversation)?.username || "User"}
                           />
                           <AvatarFallback>
-                            {getOtherParticipant(activeConversation)?.displayName?.charAt(0) || "U"}
+                            {((getOtherParticipant(activeConversation)?.fullName || getOtherParticipant(activeConversation)?.username) || "Unknown")?.charAt(0) || "U"}
                           </AvatarFallback>
                         </Avatar>
                         {getOtherParticipant(activeConversation) &&
-                          isUserOnline(getOtherParticipant(activeConversation)!.id) && (
+                          isUserOnline(getOtherParticipant(activeConversation)!.uid) && (
                             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
                           )}
                       </div>
                       <div>
                         <h3 className="font-semibold">
-                          {getOtherParticipant(activeConversation)?.displayName || "Unknown User"}
+                          {getOtherParticipant(activeConversation)?.fullName || getOtherParticipant(activeConversation)?.username || "Unknown User"}
                         </h3>
                         <p className="text-sm text-muted-foreground">
                           {getOtherParticipant(activeConversation) &&
-                          isUserOnline(getOtherParticipant(activeConversation)!.id)
+                          isUserOnline(getOtherParticipant(activeConversation)!.uid)
                             ? "Online"
                             : "Offline"}
                         </p>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="icon">
-                        <Phone className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <Video className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <Info className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -478,7 +462,7 @@ export default function MessagesPage() {
                                     src={message.senderAvatar || "/placeholder.svg"}
                                     alt={message.senderName}
                                   />
-                                  <AvatarFallback>{message.senderName.charAt(0)}</AvatarFallback>
+                                  <AvatarFallback>{(message.senderName || "U").charAt(0)}</AvatarFallback>
                                 </Avatar>
                               )}
                               {!isOwn && !showAvatar && <div className="w-8" />}
@@ -526,10 +510,10 @@ export default function MessagesPage() {
                             <Avatar className="h-8 w-8">
                               <AvatarImage
                                 src={getOtherParticipant(activeConversation)?.profilePicture || "/placeholder.svg"}
-                                alt={getOtherParticipant(activeConversation)?.displayName || "User"}
+                                alt={getOtherParticipant(activeConversation)?.fullName || getOtherParticipant(activeConversation)?.username || "User"}
                               />
                               <AvatarFallback>
-                                {getOtherParticipant(activeConversation)?.displayName?.charAt(0) || "U"}
+                                {((getOtherParticipant(activeConversation)?.fullName || getOtherParticipant(activeConversation)?.username) || "Unknown")?.charAt(0) || "U"}
                               </AvatarFallback>
                             </Avatar>
                             <div className="bg-muted rounded-lg px-4 py-2">
