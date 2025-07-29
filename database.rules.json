@@ -15,7 +15,10 @@
       ".indexOn": ["email", "username", "isVerified"]
     },
     "conversations": {
-      ".indexOn": ["participants", "lastMessageAt"]
+      ".indexOn": ["participants", "lastMessageAt"],
+      "participants": {
+        ".indexOn": ".value"
+      }
     },
     "notifications": {
       ".indexOn": ["userId", "isRead", "createdAt"]
