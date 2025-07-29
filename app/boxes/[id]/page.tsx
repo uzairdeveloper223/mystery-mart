@@ -370,10 +370,10 @@ export default function BoxDetailPage() {
                 <span className="text-4xl font-bold">${box.price}</span>
                 <div className="text-sm text-muted-foreground">
                   <div>
-                    Est. Value: ${box.estimatedValue.min} - ${box.estimatedValue.max}
+                    Est. Value: ${box.estimatedValue?.min || 0} - ${box.estimatedValue?.max || 0}
                   </div>
                   <div className="text-green-600 font-medium">
-                    {Math.round(((box.estimatedValue.min - box.price) / box.price) * 100)}%+ potential value
+                    {box.estimatedValue?.min ? Math.round(((box.estimatedValue.min - box.price) / box.price) * 100) : 0}%+ potential value
                   </div>
                 </div>
               </div>

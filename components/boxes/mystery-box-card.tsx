@@ -96,12 +96,12 @@ export function MysteryBoxCard({ box }: MysteryBoxCardProps) {
             <div>
               <p className="text-2xl font-bold">${box.price}</p>
               <p className="text-xs text-muted-foreground">
-                Est. ${box.estimatedValue.min}-${box.estimatedValue.max}
+                Est. ${box.estimatedValue?.min || 0}-${box.estimatedValue?.max || 0}
               </p>
             </div>
             <div className="text-right">
               <p className="text-sm font-medium text-green-600">
-                {Math.round(((box.estimatedValue.min - box.price) / box.price) * 100)}%+ value
+                {box.estimatedValue?.min ? Math.round(((box.estimatedValue.min - box.price) / box.price) * 100) : 0}%+ value
               </p>
             </div>
           </div>
