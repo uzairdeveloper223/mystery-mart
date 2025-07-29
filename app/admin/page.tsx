@@ -1,0 +1,1128 @@
+"use client"
+
+import { useAuth } from "@/hooks/use-auth"
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Users,
+  Package,
+  Shield,
+  AlertTriangle,
+  DollarSign,
+  CheckCircle,
+  XCircle,
+  MessageCircle,
+  Clock,
+  Settings,
+  Database,
+  Eye,
+  Trash2,
+  UserX,
+  UserCheck,
+  Activity,
+  TrendingUp,
+} from "lucide-react"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { FirebaseService } from "@/lib/firebase-service"
+import { useToast } from "@/hooks/use-toast"
+import type {
+  VerificationRequest,
+  Report,
+  SellerApplication,
+  AdminMessage,
+  UserProfile,
+  MysteryBox,
+  PlatformSettings,
+} from "@/lib/types"
+
+export default function AdminPage() {
+  const { user, isAdmin, loading } = useAuth()
+  const router = useRouter()
+  const { toast } = useToast()
+
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalBoxes: 0,
+    pendingVerifications: 0,
+    totalRevenue: 0,
+    activeReports: 0,
+    pendingSellerRequests: 0,
+    totalDonations: 0,
+    bannedUsers: 0,
+    activeBoxes: 0,
+    pendingBoxes: 0,
+  })
+
+  const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>([])
+  const [sellerApplications, setSellerApplications] = useState<SellerApplication[]>([])
+  const [reports, setReports] = useState<Report[]>([])
+  const [adminMessages, setAdminMessages] = useState<AdminMessage[]>([])
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([])
+  const [allBoxes, setAllBoxes] = useState<MysteryBox[]>([])
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null)
+  const [dataLoading, setDataLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!loading && (!user || !isAdmin)) {
+      router.push("/")
+    }
+  }, [user, isAdmin, loading, router])
+
+  useEffect(() => {
+    if (user && isAdmin) {
+      fetchAdminData()
+    }
+  }, [user, isAdmin])
+
+  const fetchAdminData = async () => {
+    try {
+      setDataLoading(true)
+
+      const [
+        platformStats,
+        pendingVerifications,
+        pendingSellerApps,
+        activeReports,
+        pendingMessages,
+        users,
+        boxes,
+        settings,
+      ] = await Promise.all([
+        FirebaseService.getPlatformStats(),
+        FirebaseService.getVerificationRequests("pending"),
+        FirebaseService.getSellerApplications("pending"),
+        FirebaseService.getReports("pending"),
+        FirebaseService.getAdminMessages("open"),
+        FirebaseService.getAllUsers(100),
+        FirebaseService.getAllBoxes(),
+        FirebaseService.getPlatformSettings(),
+      ])
+
+      setStats(platformStats)
+      setVerificationRequests(pendingVerifications)
+      setSellerApplications(pendingSellerApps)
+      setReports(activeReports)
+      setAdminMessages(pendingMessages)
+      setAllUsers(users)
+      setAllBoxes(boxes)
+      setPlatformSettings(settings)
+    } catch (error) {
+      console.error("Failed to fetch admin data:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load admin data",
+        variant: "destructive",
+      })
+    } finally {
+      setDataLoading(false)
+    }
+  }
+
+  const handleSellerApplicationAction = async (
+    applicationId: string,
+    action: "approved" | "rejected",
+    notes?: string,
+  ) => {
+    setActionLoading(applicationId)
+    try {
+      if (action === "approved") {
+        await FirebaseService.approveSellerApplication(applicationId, user!.uid, notes)
+      } else {
+        await FirebaseService.rejectSellerApplication(applicationId, user!.uid, notes || "Application rejected")
+      }
+
+      toast({
+        title: "Success",
+        description: `Seller application ${action}`,
+      })
+
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to process seller application:", error)
+      toast({
+        title: "Error",
+        description: "Failed to process seller application",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleVerificationAction = async (verificationId: string, action: "approved" | "rejected", notes?: string) => {
+    setActionLoading(verificationId)
+    try {
+      if (action === "approved") {
+        await FirebaseService.approveVerificationRequest(verificationId, user!.uid, notes)
+      } else {
+        await FirebaseService.rejectVerificationRequest(verificationId, user!.uid, notes || "Verification rejected")
+      }
+
+      toast({
+        title: "Success",
+        description: `Verification request ${action}`,
+      })
+
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to process verification:", error)
+      toast({
+        title: "Error",
+        description: "Failed to process verification request",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleUserBan = async (userId: string, reason: string, duration?: number) => {
+    try {
+      await FirebaseService.banUser(userId, reason, duration)
+      toast({
+        title: "Success",
+        description: "User has been banned",
+      })
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to ban user:", error)
+      toast({
+        title: "Error",
+        description: "Failed to ban user",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleUserUnban = async (userId: string) => {
+    try {
+      await FirebaseService.unbanUser(userId)
+      toast({
+        title: "Success",
+        description: "User has been unbanned",
+      })
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to unban user:", error)
+      toast({
+        title: "Error",
+        description: "Failed to unban user",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleBoxModeration = async (boxId: string, action: "approve" | "reject" | "remove", reason?: string) => {
+    try {
+      await FirebaseService.moderateBox(boxId, action, reason)
+      toast({
+        title: "Success",
+        description: `Box ${action}d successfully`,
+      })
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to moderate box:", error)
+      toast({
+        title: "Error",
+        description: "Failed to moderate box",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleMaintenanceToggle = async (enabled: boolean) => {
+    try {
+      await FirebaseService.setMaintenanceMode(enabled, platformSettings?.maintenanceMessage)
+      toast({
+        title: "Success",
+        description: `Maintenance mode ${enabled ? "enabled" : "disabled"}`,
+      })
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to toggle maintenance mode:", error)
+      toast({
+        title: "Error",
+        description: "Failed to toggle maintenance mode",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDatabaseOptimization = async () => {
+    try {
+      setActionLoading("optimize")
+      const results = await FirebaseService.optimizeDatabase()
+      toast({
+        title: "Database Optimized",
+        description: `Cleaned up ${results.deletedExpiredCodes + results.deletedOldNotifications + results.deletedOldMessages} items`,
+      })
+    } catch (error) {
+      console.error("Failed to optimize database:", error)
+      toast({
+        title: "Error",
+        description: "Failed to optimize database",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleMessageReply = async (messageId: string, content: string) => {
+    try {
+      await FirebaseService.replyToAdminMessage(messageId, user!.uid, content)
+      toast({
+        title: "Success",
+        description: "Reply sent successfully",
+      })
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to send reply:", error)
+      toast({
+        title: "Error",
+        description: "Failed to send reply",
+        variant: "destructive",
+      })
+    }
+  }
+
+  if (loading || dataLoading) {
+    return <LoadingSpinner />
+  }
+
+  if (!user || !isAdmin) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <Shield className="h-12 w-12 mx-auto mb-4 text-red-500" />
+            <CardTitle>Access Denied</CardTitle>
+            <CardDescription>You don't have permission to access this page.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
+          <p className="text-muted-foreground">Manage Mystery Mart platform</p>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Users</p>
+                  <p className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</p>
+                </div>
+                <Users className="h-8 w-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Active Boxes</p>
+                  <p className="text-2xl font-bold">{stats.activeBoxes.toLocaleString()}</p>
+                </div>
+                <Package className="h-8 w-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                  <p className="text-2xl font-bold">
+                    {stats.pendingBoxes + stats.pendingSellerRequests + stats.pendingVerifications}
+                  </p>
+                </div>
+                <Clock className="h-8 w-8 text-orange-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Revenue</p>
+                  <p className="text-2xl font-bold">${(stats.totalRevenue / 1000000).toFixed(1)}M</p>
+                </div>
+                <DollarSign className="h-8 w-8 text-purple-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Reports</p>
+                  <p className="text-2xl font-bold">{stats.activeReports}</p>
+                </div>
+                <AlertTriangle className="h-8 w-8 text-red-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Admin Tabs */}
+        <Tabs defaultValue="platform-settings" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-8">
+            <TabsTrigger value="platform-settings">Settings</TabsTrigger>
+            <TabsTrigger value="seller-applications">Sellers ({sellerApplications.length})</TabsTrigger>
+            <TabsTrigger value="verifications">Verify ({verificationRequests.length})</TabsTrigger>
+            <TabsTrigger value="box-moderation">Boxes ({stats.pendingBoxes})</TabsTrigger>
+            <TabsTrigger value="user-management">Users</TabsTrigger>
+            <TabsTrigger value="messages">Messages ({adminMessages.length})</TabsTrigger>
+            <TabsTrigger value="reports">Reports ({reports.length})</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="platform-settings">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Platform Controls
+                  </CardTitle>
+                  <CardDescription>Manage platform-wide settings and features</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="maintenance-mode">Maintenance Mode</Label>
+                      <p className="text-sm text-muted-foreground">Put platform under maintenance</p>
+                    </div>
+                    <Switch
+                      id="maintenance-mode"
+                      checked={platformSettings?.maintenanceMode || false}
+                      onCheckedChange={handleMaintenanceToggle}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="maintenance-message">Maintenance Message</Label>
+                    <Textarea
+                      id="maintenance-message"
+                      placeholder="Enter maintenance message..."
+                      value={platformSettings?.maintenanceMessage || ""}
+                      onChange={(e) => {
+                        if (platformSettings) {
+                          setPlatformSettings({
+                            ...platformSettings,
+                            maintenanceMessage: e.target.value,
+                          })
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Allow New Registrations</Label>
+                      <p className="text-sm text-muted-foreground">Enable user registration</p>
+                    </div>
+                    <Switch
+                      checked={platformSettings?.allowRegistration || false}
+                      onCheckedChange={(checked) => {
+                        if (platformSettings) {
+                          FirebaseService.updatePlatformSettings({ allowRegistration: checked })
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Allow Box Creation</Label>
+                      <p className="text-sm text-muted-foreground">Enable sellers to create boxes</p>
+                    </div>
+                    <Switch
+                      checked={platformSettings?.allowBoxCreation || false}
+                      onCheckedChange={(checked) => {
+                        if (platformSettings) {
+                          FirebaseService.updatePlatformSettings({ allowBoxCreation: checked })
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Allow Purchases</Label>
+                      <p className="text-sm text-muted-foreground">Enable buying functionality</p>
+                    </div>
+                    <Switch
+                      checked={platformSettings?.allowPurchases || false}
+                      onCheckedChange={(checked) => {
+                        if (platformSettings) {
+                          FirebaseService.updatePlatformSettings({ allowPurchases: checked })
+                        }
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Database className="h-5 w-5" />
+                    Database Management
+                  </CardTitle>
+                  <CardDescription>Optimize and maintain database performance</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    onClick={handleDatabaseOptimization}
+                    disabled={actionLoading === "optimize"}
+                    className="w-full"
+                  >
+                    {actionLoading === "optimize" ? "Optimizing..." : "Optimize Database"}
+                  </Button>
+
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Database Stats</h4>
+                    <div className="text-sm space-y-1">
+                      <div className="flex justify-between">
+                        <span>Total Users:</span>
+                        <span>{stats.totalUsers}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Total Boxes:</span>
+                        <span>{stats.totalBoxes}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Banned Users:</span>
+                        <span>{stats.bannedUsers}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Quick Actions</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button size="sm" variant="outline">
+                        Export Data
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        Backup DB
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="seller-applications">
+            <Card>
+              <CardHeader>
+                <CardTitle>Seller Applications</CardTitle>
+                <CardDescription>Review and approve new seller applications</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {sellerApplications.length > 0 ? (
+                    sellerApplications.map((application) => (
+                      <div key={application.id} className="border rounded-lg p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="font-semibold">Application #{application.id.slice(-8)}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Submitted: {new Date(application.requestedAt).toLocaleDateString()}
+                            </p>
+                            <Badge className="mt-2">
+                              {application.businessInfo.businessType === "business" ? "Business" : "Individual"}
+                            </Badge>
+                          </div>
+                          <Badge variant="secondary">{application.status}</Badge>
+                        </div>
+
+                        <div className="space-y-3 mb-4">
+                          {application.businessInfo.businessName && (
+                            <div>
+                              <p className="text-sm font-medium">Business Name:</p>
+                              <p className="text-sm text-muted-foreground">{application.businessInfo.businessName}</p>
+                            </div>
+                          )}
+
+                          <div>
+                            <p className="text-sm font-medium">Description:</p>
+                            <p className="text-sm text-muted-foreground">{application.businessInfo.description}</p>
+                          </div>
+
+                          <div>
+                            <p className="text-sm font-medium">Experience:</p>
+                            <p className="text-sm text-muted-foreground">{application.businessInfo.experience}</p>
+                          </div>
+
+                          <div>
+                            <p className="text-sm font-medium">Categories:</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {application.businessInfo.categories.map((category) => (
+                                <Badge key={category} variant="outline" className="text-xs">
+                                  {category}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-sm font-medium">Expected Volume:</p>
+                            <p className="text-sm text-muted-foreground">{application.businessInfo.expectedVolume}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleSellerApplicationAction(application.id, "approved")}
+                            disabled={actionLoading === application.id}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              const notes = prompt("Reason for rejection:")
+                              if (notes) {
+                                handleSellerApplicationAction(application.id, "rejected", notes)
+                              }
+                            }}
+                            disabled={actionLoading === application.id}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => router.push(`/messages?user=${application.userId}`)}
+                          >
+                            <MessageCircle className="h-4 w-4 mr-1" />
+                            Message
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No pending seller applications</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="verifications">
+            <Card>
+              <CardHeader>
+                <CardTitle>Verification Requests</CardTitle>
+                <CardDescription>Review blue checkmark verification requests</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {verificationRequests.length > 0 ? (
+                    verificationRequests.map((request) => (
+                      <div key={request.id} className="border rounded-lg p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="font-semibold">Verification Request #{request.id.slice(-8)}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Requested: {new Date(request.requestedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge variant="secondary">{request.status}</Badge>
+                        </div>
+
+                        <div className="mb-4">
+                          <p className="text-sm font-medium mb-2">Seller Message:</p>
+                          <p className="text-sm text-muted-foreground bg-muted p-3 rounded">{request.message}</p>
+                        </div>
+
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700"
+                            onClick={() => handleVerificationAction(request.id, "approved")}
+                            disabled={actionLoading === request.id}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Grant Verification
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              const notes = prompt("Reason for rejection:")
+                              if (notes) {
+                                handleVerificationAction(request.id, "rejected", notes)
+                              }
+                            }}
+                            disabled={actionLoading === request.id}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => router.push(`/messages?user=${request.userId}`)}
+                          >
+                            <MessageCircle className="h-4 w-4 mr-1" />
+                            Message
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No pending verification requests</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="box-moderation">
+            <Card>
+              <CardHeader>
+                <CardTitle>Box Moderation</CardTitle>
+                <CardDescription>Review and moderate mystery boxes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {allBoxes.filter((box) => box.status === "pending").length > 0 ? (
+                    allBoxes
+                      .filter((box) => box.status === "pending")
+                      .map((box) => (
+                        <div key={box.id} className="border rounded-lg p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                              <h3 className="font-semibold">{box.title}</h3>
+                              <p className="text-sm text-muted-foreground mb-2">{box.description}</p>
+                              <div className="flex items-center gap-4 text-sm">
+                                <span>Price: ${box.price}</span>
+                                <span>Category: {box.category}</span>
+                                <span>Rarity: {box.rarity}</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Created: {new Date(box.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex flex-col gap-2 ml-4">
+                              <Badge variant="secondary">{box.status}</Badge>
+                              {box.images.length > 0 && (
+                                <img
+                                  src={box.images[0] || "/placeholder.svg"}
+                                  alt={box.title}
+                                  className="w-20 h-20 object-cover rounded"
+                                />
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleBoxModeration(box.id, "approve")}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                const reason = prompt("Reason for rejection:")
+                                if (reason) {
+                                  handleBoxModeration(box.id, "reject", reason)
+                                }
+                              }}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Reject
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const reason = prompt("Reason for removal:")
+                                if (reason) {
+                                  handleBoxModeration(box.id, "remove", reason)
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Remove
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => router.push(`/boxes/${box.id}`)}>
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No boxes pending moderation</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="user-management">
+            <Card>
+              <CardHeader>
+                <CardTitle>User Management</CardTitle>
+                <CardDescription>Manage user accounts and permissions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 mb-4">
+                    <Input placeholder="Search users..." className="max-w-sm" />
+                    <Select>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Users</SelectItem>
+                        <SelectItem value="banned">Banned</SelectItem>
+                        <SelectItem value="verified">Verified</SelectItem>
+                        <SelectItem value="sellers">Sellers</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-3">
+                    {allUsers.slice(0, 20).map((user) => (
+                      <div key={user.uid} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
+                            {user.profilePicture ? (
+                              <img
+                                src={user.profilePicture || "/placeholder.svg"}
+                                alt={user.username}
+                                className="w-10 h-10 rounded-full"
+                              />
+                            ) : (
+                              <span className="text-sm font-medium">{user.username.charAt(0).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{user.fullName}</p>
+                              {user.isVerified && <Badge variant="secondary">Verified</Badge>}
+                              {user.isApprovedSeller && <Badge variant="outline">Seller</Badge>}
+                              {user.isBanned && <Badge variant="destructive">Banned</Badge>}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              @{user.username} • {user.email}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Joined: {new Date(user.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {user.isBanned ? (
+                            <Button size="sm" variant="outline" onClick={() => handleUserUnban(user.uid)}>
+                              <UserCheck className="h-4 w-4 mr-1" />
+                              Unban
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                const reason = prompt("Reason for ban:")
+                                const duration = prompt("Duration in days (leave empty for permanent):")
+                                if (reason) {
+                                  handleUserBan(user.uid, reason, duration ? Number.parseInt(duration) : undefined)
+                                }
+                              }}
+                            >
+                              <UserX className="h-4 w-4 mr-1" />
+                              Ban
+                            </Button>
+                          )}
+                          <Button size="sm" variant="outline" onClick={() => router.push(`/seller/${user.username}`)}>
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="messages">
+            <Card>
+              <CardHeader>
+                <CardTitle>Admin Messages</CardTitle>
+                <CardDescription>Handle user inquiries and support requests</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {adminMessages.length > 0 ? (
+                    adminMessages.map((message) => (
+                      <div key={message.id} className="border rounded-lg p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="font-semibold">{message.subject}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              From: User #{message.userId.slice(-8)} •{" "}
+                              {new Date(message.createdAt).toLocaleDateString()}
+                            </p>
+                            <Badge
+                              className={`mt-2 ${
+                                message.priority === "urgent"
+                                  ? "bg-red-500"
+                                  : message.priority === "high"
+                                    ? "bg-orange-500"
+                                    : message.priority === "medium"
+                                      ? "bg-yellow-500"
+                                      : "bg-gray-500"
+                              }`}
+                            >
+                              {message.priority} priority
+                            </Badge>
+                          </div>
+                          <Badge variant="secondary">{message.status}</Badge>
+                        </div>
+
+                        <div className="mb-4">
+                          <p className="text-sm font-medium mb-2">Message:</p>
+                          <p className="text-sm text-muted-foreground bg-muted p-3 rounded">{message.content}</p>
+                        </div>
+
+                        {message.responses.length > 0 && (
+                          <div className="mb-4">
+                            <p className="text-sm font-medium mb-2">Conversation:</p>
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                              {message.responses.map((response) => (
+                                <div
+                                  key={response.id}
+                                  className={`p-2 rounded text-sm ${
+                                    response.senderType === "admin" ? "bg-blue-50 ml-4" : "bg-gray-50 mr-4"
+                                  }`}
+                                >
+                                  <p className="font-medium text-xs mb-1">
+                                    {response.senderType === "admin" ? "Admin" : "User"} •{" "}
+                                    {new Date(response.createdAt).toLocaleTimeString()}
+                                  </p>
+                                  <p>{response.content}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <Textarea placeholder="Type your reply..." id={`reply-${message.id}`} rows={3} />
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                const textarea = document.getElementById(`reply-${message.id}`) as HTMLTextAreaElement
+                                if (textarea.value.trim()) {
+                                  handleMessageReply(message.id, textarea.value.trim())
+                                  textarea.value = ""
+                                }
+                              }}
+                            >
+                              Send Reply
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => router.push(`/messages?user=${message.userId}`)}
+                            >
+                              <MessageCircle className="h-4 w-4 mr-1" />
+                              Open Chat
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No pending messages</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <Card>
+              <CardHeader>
+                <CardTitle>User Reports</CardTitle>
+                <CardDescription>Handle user reports and disputes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {reports.length > 0 ? (
+                    reports.map((report) => (
+                      <div key={report.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="space-y-1">
+                          <p className="font-medium">{report.category}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Reported: {report.reportedType} ID {report.reportedId}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(report.createdAt).toLocaleDateString()}
+                          </p>
+                          <p className="text-sm">{report.description}</p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline">
+                            Investigate
+                          </Button>
+                          <Button size="sm" variant="destructive">
+                            Take Action
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No active reports</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Platform Growth
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span>User Growth Rate</span>
+                      <span className="font-medium text-green-600">+12.5%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Seller Approval Rate</span>
+                      <span className="font-medium">85%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Verification Rate</span>
+                      <span className="font-medium">92%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Platform Revenue</span>
+                      <span className="font-medium">${stats.totalRevenue.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    System Health
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span>Active Sellers</span>
+                      <span className="font-medium">{Math.round(stats.totalUsers * 0.15)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Avg Response Time</span>
+                      <span className="font-medium">2.3 hours</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Report Resolution Rate</span>
+                      <span className="font-medium">94%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>User Satisfaction</span>
+                      <span className="font-medium">4.7/5</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Financial Overview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span>Total Revenue</span>
+                      <span className="font-medium">${stats.totalRevenue.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Platform Fees</span>
+                      <span className="font-medium">${Math.round(stats.totalRevenue * 0.05).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Donations</span>
+                      <span className="font-medium">${stats.totalDonations.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Monthly Growth</span>
+                      <span className="font-medium text-green-600">+18.2%</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  )
+}
