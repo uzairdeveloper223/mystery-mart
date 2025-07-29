@@ -20,8 +20,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { FirebaseService } from "@/lib/firebase-service"
+import { updatePassword, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
+import { auth } from "@/lib/firebase"
 import { useToast } from "@/hooks/use-toast"
-import { User, Settings, Bell, MapPin, Shield, CheckCircle, Clock, X, Upload, Star, Award, Plus, Navigation } from "lucide-react"
+import { User, Settings, Bell, MapPin, Shield, CheckCircle, Clock, X, Upload, Star, Award, Plus, Navigation, Trash2 } from "lucide-react"
 import type { Address } from "@/lib/types"
 
 export default function SettingsPage() {
@@ -51,6 +53,17 @@ export default function SettingsPage() {
     phoneNumber: "",
     isDefault: false,
   })
+
+  // Security states
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  })
+  const [deleteConfirmation, setDeleteConfirmation] = useState("")
+  const [securityLoading, setSecurityLoading] = useState(false)
 
   const [profileData, setProfileData] = useState({
     fullName: "",
@@ -435,6 +448,137 @@ export default function SettingsPage() {
         description: "Failed to delete address. Please try again.",
         variant: "destructive",
       })
+    }
+  }
+
+  // Password change functions
+  const openPasswordDialog = () => {
+    setPasswordForm({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    })
+    setShowPasswordDialog(true)
+  }
+
+  const closePasswordDialog = () => {
+    setShowPasswordDialog(false)
+    setPasswordForm({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    })
+  }
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !auth.currentUser) return
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "Password Mismatch",
+        description: "New password and confirmation password do not match",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSecurityLoading(true)
+    try {
+      // Re-authenticate user before changing password
+      const credential = EmailAuthProvider.credential(user.email, passwordForm.currentPassword)
+      await reauthenticateWithCredential(auth.currentUser, credential)
+
+      // Update password
+      await updatePassword(auth.currentUser, passwordForm.newPassword)
+
+      toast({
+        title: "Password Updated",
+        description: "Your password has been changed successfully",
+      })
+
+      closePasswordDialog()
+    } catch (error: any) {
+      console.error("Failed to change password:", error)
+      let errorMessage = "Failed to change password. Please try again."
+      
+      if (error.code === "auth/wrong-password") {
+        errorMessage = "Current password is incorrect"
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "New password is too weak"
+      } else if (error.code === "auth/requires-recent-login") {
+        errorMessage = "Please log out and log back in before changing your password"
+      }
+
+      toast({
+        title: "Password Change Failed",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setSecurityLoading(false)
+    }
+  }
+
+  // Account deletion functions
+  const openDeleteDialog = () => {
+    setDeleteConfirmation("")
+    setShowDeleteDialog(true)
+  }
+
+  const closeDeleteDialog = () => {
+    setShowDeleteDialog(false)
+    setDeleteConfirmation("")
+  }
+
+  const handleAccountDeletion = async () => {
+    if (!user || !auth.currentUser) return
+
+    if (deleteConfirmation !== "DELETE") {
+      toast({
+        title: "Confirmation Required",
+        description: "Please type 'DELETE' to confirm account deletion",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSecurityLoading(true)
+    try {
+      // Delete the Firebase Auth user (this will cascade delete related data)
+      await deleteUser(auth.currentUser)
+
+      toast({
+        title: "Account Deleted",
+        description: "Your account has been permanently deleted",
+      })
+
+      // Redirect to home page
+      router.push("/")
+    } catch (error: any) {
+      console.error("Failed to delete account:", error)
+      let errorMessage = "Failed to delete account. Please try again."
+      
+      if (error.code === "auth/requires-recent-login") {
+        errorMessage = "Please log out and log back in before deleting your account"
+      }
+
+      toast({
+        title: "Account Deletion Failed",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setSecurityLoading(false)
     }
   }
 
@@ -1070,6 +1214,131 @@ export default function SettingsPage() {
                   </form>
                 </DialogContent>
               </Dialog>
+
+              {/* Password Change Dialog */}
+              <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Change Password</DialogTitle>
+                    <DialogDescription>
+                      Enter your current password and choose a new secure password
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <form onSubmit={handlePasswordChange} className="space-y-4">
+                    <div>
+                      <Label htmlFor="currentPassword">Current Password</Label>
+                      <Input
+                        id="currentPassword"
+                        type="password"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="newPassword">New Password</Label>
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                        required
+                        minLength={6}
+                      />
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Must be at least 6 characters long
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={closePasswordDialog}
+                        disabled={securityLoading}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={securityLoading}
+                        className="mystery-gradient text-white"
+                      >
+                        {securityLoading ? "Changing..." : "Change Password"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
+              {/* Account Deletion Dialog */}
+              <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle className="text-red-600">Delete Account</DialogTitle>
+                    <DialogDescription>
+                      This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-4">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <h4 className="font-medium text-red-800 mb-2">What will be deleted:</h4>
+                      <ul className="text-sm text-red-700 space-y-1">
+                        <li>• Your profile and personal information</li>
+                        <li>• All your mystery boxes and listings</li>
+                        <li>• Order history and transaction records</li>
+                        <li>• Messages and conversations</li>
+                        <li>• Saved addresses and preferences</li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="deleteConfirmation">
+                        Type <span className="font-bold">DELETE</span> to confirm:
+                      </Label>
+                      <Input
+                        id="deleteConfirmation"
+                        value={deleteConfirmation}
+                        onChange={(e) => setDeleteConfirmation(e.target.value)}
+                        placeholder="Type DELETE to confirm"
+                      />
+                    </div>
+
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={closeDeleteDialog}
+                        disabled={securityLoading}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={handleAccountDeletion}
+                        disabled={securityLoading || deleteConfirmation !== "DELETE"}
+                      >
+                        {securityLoading ? "Deleting..." : "Delete Account"}
+                      </Button>
+                    </DialogFooter>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </TabsContent>
 
             <TabsContent value="security">
@@ -1086,17 +1355,11 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <h3 className="font-semibold">Password</h3>
-                        <p className="text-sm text-muted-foreground">Last changed 30 days ago</p>
+                        <p className="text-sm text-muted-foreground">Keep your account secure with a strong password</p>
                       </div>
-                      <Button variant="outline">Change Password</Button>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <h3 className="font-semibold">Two-Factor Authentication</h3>
-                        <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
-                      </div>
-                      <Button variant="outline">Enable 2FA</Button>
+                      <Button variant="outline" onClick={openPasswordDialog}>
+                        Change Password
+                      </Button>
                     </div>
 
                     <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -1107,14 +1370,6 @@ export default function SettingsPage() {
                       <Button variant="outline" onClick={() => router.push("/auth/account-recovery")}>
                         Setup Recovery
                       </Button>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <h3 className="font-semibold">Login Sessions</h3>
-                        <p className="text-sm text-muted-foreground">Manage your active sessions</p>
-                      </div>
-                      <Button variant="outline">View Sessions</Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -1130,7 +1385,9 @@ export default function SettingsPage() {
                         <h3 className="font-semibold text-red-600">Delete Account</h3>
                         <p className="text-sm text-muted-foreground">Permanently delete your account and all data</p>
                       </div>
-                      <Button variant="destructive">Delete Account</Button>
+                      <Button variant="destructive" onClick={openDeleteDialog}>
+                        Delete Account
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
