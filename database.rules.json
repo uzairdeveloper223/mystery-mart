@@ -1,0 +1,30 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": "auth != null",
+    "boxes": {
+      ".indexOn": ["status", "category", "sellerId", "createdAt"]
+    },
+    "orders": {
+      ".indexOn": ["buyerId", "sellerId", "status", "createdAt"]
+    },
+    "users": {
+      ".indexOn": ["email", "username", "isVerified"]
+    },
+    "conversations": {
+      ".indexOn": ["participants", "lastMessageAt"]
+    },
+    "notifications": {
+      ".indexOn": ["userId", "isRead", "createdAt"]
+    },
+    "reports": {
+      ".indexOn": ["status", "createdAt"]
+    },
+    "seller_applications": {
+      ".indexOn": ["userId", "status", "createdAt"]
+    },
+    "verification_requests": {
+      ".indexOn": ["userId", "status", "createdAt"]
+    }
+  }
+}

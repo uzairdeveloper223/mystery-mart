@@ -564,7 +564,7 @@ export default function CheckoutPage() {
                             <p className="font-medium text-sm">{item.box.title}</p>
                             <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                           </div>
-                          <p className="font-medium">${(item.box.price * item.quantity).toFixed(2)}</p>
+                          <p className="font-medium">${((item.box.price || 0) * item.quantity).toFixed(2)}</p>
                         </div>
                       ))}
                     </div>
@@ -600,7 +600,7 @@ export default function CheckoutPage() {
                       <span>
                         {item.box.title} × {item.quantity}
                       </span>
-                      <span>${(item.box.price * item.quantity).toFixed(2)}</span>
+                      <span>${((item.box.price || 0) * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>

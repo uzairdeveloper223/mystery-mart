@@ -33,10 +33,11 @@ export default function CartPage() {
   }
 
   const shippingCost = items.reduce((sum, item) => {
-    return sum + (item.box.shipping.freeShipping ? 0 : item.box.shipping.shippingCost * item.quantity)
+    const itemShippingCost = item.box.shipping?.freeShipping ? 0 : (item.box.shipping?.shippingCost || 0)
+    return sum + (itemShippingCost * item.quantity)
   }, 0)
 
-  const subtotal = totalPrice
+  const subtotal = totalPrice || 0
   const total = subtotal + shippingCost
 
   const getRarityClass = (rarity: string) => {
@@ -142,10 +143,10 @@ export default function CartPage() {
                           </div>
 
                           <div className="text-right">
-                            <p className="font-semibold">${(item.box.price * item.quantity).toFixed(2)}</p>
-                            {!item.box.shipping.freeShipping && (
+                            <p className="font-semibold">${((item.box.price || 0) * item.quantity).toFixed(2)}</p>
+                            {!item.box.shipping?.freeShipping && (
                               <p className="text-xs text-muted-foreground">
-                                +${(item.box.shipping.shippingCost * item.quantity).toFixed(2)} shipping
+                                +${((item.box.shipping?.shippingCost || 0) * item.quantity).toFixed(2)} shipping
                               </p>
                             )}
                           </div>
