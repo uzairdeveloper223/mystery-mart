@@ -102,9 +102,9 @@ export default function RegisterPage() {
       await register(formData.email, formData.password, formData.username, formData.fullName)
       toast({
         title: "Account created!",
-        description: "Please check your email to verify your account.",
+        description: "Welcome to Mystery Mart! You can now start buying and selling mystery boxes.",
       })
-      router.push("/auth/verify-email")
+      router.push("/dashboard")
     } catch (error: any) {
       setError(error.message || "Failed to create account")
     } finally {

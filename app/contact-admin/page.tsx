@@ -49,19 +49,17 @@ export default function ContactAdminPage() {
 
     setIsSubmitting(true)
     try {
-      await FirebaseService.createAdminMessage({
-        userId: user.uid,
-        subject: formData.subject.trim(),
-        content: formData.content.trim(),
-        priority: formData.priority as "low" | "medium" | "high" | "urgent",
-        status: "open",
-        type: "general_inquiry",
-        responses: [],
-      })
+      // Send message directly to admin's regular messages
+      await FirebaseService.sendMessageToAdmin(
+        user.uid,
+        formData.subject.trim(),
+        formData.content.trim(),
+        formData.priority as "low" | "medium" | "high" | "urgent"
+      )
 
       toast({
         title: "Message Sent",
-        description: "Your message has been sent to the admin. You'll receive a response soon.",
+        description: "Your message has been sent to the admin. You can continue the conversation in Messages.",
       })
 
       // Reset form

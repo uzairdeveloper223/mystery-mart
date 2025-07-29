@@ -235,21 +235,17 @@ export default function HelpPage() {
 
     setIsSubmitting(true)
     try {
-      await FirebaseService.createAdminMessage({
-        userId: user.uid,
-        subject: contactForm.subject.trim(),
-        content: `From: ${contactForm.name} (${contactForm.email})\n\n${contactForm.message.trim()}`,
-        priority: contactForm.priority as "low" | "medium" | "high" | "urgent",
-        status: "open",
-        type: "support_request",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        responses: [],
-      })
+      // Send message directly to admin's regular messages
+      await FirebaseService.sendMessageToAdmin(
+        user.uid,
+        contactForm.subject.trim(),
+        `From: ${contactForm.name} (${contactForm.email})\n\n${contactForm.message.trim()}`,
+        contactForm.priority as "low" | "medium" | "high" | "urgent"
+      )
 
       toast({
         title: "Message Sent Successfully",
-        description: "Your message has been sent to the admin. We'll get back to you within 24 hours.",
+        description: "Your message has been sent to the admin. You can continue the conversation in Messages.",
       })
 
       setContactForm({

@@ -194,6 +194,17 @@ export class FirebaseService {
     return this.getUser(uid)
   }
 
+  static async getUserByEmail(email: string): Promise<UserProfile | null> {
+    const usersRef = ref(db, DB_PATHS.USERS)
+    const usersQuery = query(usersRef, orderByChild("email"), equalTo(email))
+    const snapshot = await get(usersQuery)
+
+    if (!snapshot.exists()) return null
+
+    const users = Object.values(snapshot.val()) as UserProfile[]
+    return users[0] || null
+  }
+
   static async updateUser(uid: string, updates: Partial<UserProfile>): Promise<void> {
     const sanitizedUpdates = this.sanitizeObject(updates)
     const userRef = ref(db, `${DB_PATHS.USERS}/${uid}`)
@@ -976,6 +987,50 @@ export class FirebaseService {
 
     await set(newConversationRef, conversationData)
     return conversationId
+  }
+
+  static async sendMessageToAdmin(userId: string, subject: string, content: string, priority: "low" | "medium" | "high" | "urgent" = "medium"): Promise<string> {
+    // Find admin user
+    const adminUser = await this.getUserByEmail("uzairxdev223@gmail.com")
+    if (!adminUser) {
+      throw new Error("Admin user not found")
+    }
+
+    // Check if conversation already exists between user and admin
+    const conversationsRef = ref(db, DB_PATHS.CONVERSATIONS)
+    const conversationsSnapshot = await get(conversationsRef)
+    
+    let conversationId = null
+    
+    if (conversationsSnapshot.exists()) {
+      const conversations = Object.values(conversationsSnapshot.val()) as any[]
+      const existingConversation = conversations.find(conv => 
+        conv.participants && 
+        conv.participants[userId] && 
+        conv.participants[adminUser.uid]
+      )
+      
+      if (existingConversation) {
+        conversationId = existingConversation.id
+      }
+    }
+
+    // Create new conversation if it doesn't exist
+    if (!conversationId) {
+      conversationId = await this.createConversation(userId, adminUser.uid)
+    }
+
+    // Send message with subject in content
+    const messageContent = subject ? `Subject: ${subject}\n\n${content}` : content
+    
+    const messageId = await this.sendMessage({
+      conversationId,
+      senderId: userId,
+      content: messageContent,
+      type: "text",
+    })
+
+    return messageId
   }
 
   // Notification operations
