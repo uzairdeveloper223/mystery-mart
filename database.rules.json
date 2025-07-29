@@ -20,11 +20,23 @@
     "reports": {
       ".indexOn": ["status", "createdAt"]
     },
-    "seller_applications": {
+    "seller_requests": {
       ".indexOn": ["userId", "status", "createdAt"]
     },
     "verification_requests": {
       ".indexOn": ["userId", "status", "createdAt"]
+    },
+    "messages": {
+      ".indexOn": ["conversationId", "senderId", "createdAt"]
+    },
+    "admin_messages": {
+      ".indexOn": ["userId", "status", "createdAt"]
+    },
+    "donations": {
+      ".indexOn": ["userId", "createdAt"]
+    },
+    "comments": {
+      ".indexOn": ["boxId", "userId", "createdAt"]
     }
   }
 }

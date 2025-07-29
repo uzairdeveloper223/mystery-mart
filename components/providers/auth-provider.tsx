@@ -7,7 +7,6 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  sendEmailVerification,
   sendPasswordResetEmail,
   type User as FirebaseUser,
 } from "firebase/auth"
@@ -55,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               username: firebaseUser.email!.split("@")[0], // Temporary username
               fullName: firebaseUser.displayName || "User",
               isVerified: false,
-              isEmailVerified: firebaseUser.emailVerified,
+              isEmailVerified: true,
               loyaltyTier: "bronze",
               rating: 0,
               totalSales: 0,
@@ -105,9 +104,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { user: firebaseUser } = await createUserWithEmailAndPassword(auth, email, password)
 
-    // Send email verification
-    await sendEmailVerification(firebaseUser)
-
     // Create user profile
     const userProfile: Partial<UserProfile> = {
       uid: firebaseUser.uid,
@@ -116,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       fullName,
       profilePicture: generateProfilePicture(fullName),
       isVerified: false,
-      isEmailVerified: false,
+      isEmailVerified: true,
       loyaltyTier: "bronze",
       rating: 0,
       totalSales: 0,

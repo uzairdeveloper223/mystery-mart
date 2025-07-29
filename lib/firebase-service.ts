@@ -266,6 +266,31 @@ export class FirebaseService {
   }
 
   // Seller approval system
+  static async submitSellerApplication(userId: string, applicationData: any): Promise<string> {
+    const sanitizedData = this.sanitizeObject(applicationData)
+    const requestsRef = ref(db, DB_PATHS.SELLER_REQUESTS)
+    const newRequestRef = push(requestsRef)
+    const requestId = newRequestRef.key!
+
+    await set(newRequestRef, {
+      id: requestId,
+      userId,
+      businessInfo: sanitizedData,
+      status: "pending",
+      requestedAt: new Date().toISOString(),
+      reviewedAt: null,
+      reviewedBy: null,
+      notes: "",
+    })
+
+    // Update user's seller application status
+    await this.updateUser(userId, {
+      sellerApplicationStatus: "pending",
+    })
+
+    return requestId
+  }
+
   static async requestSellerApproval(userId: string, businessInfo: any): Promise<string> {
     const sanitizedBusinessInfo = this.sanitizeObject(businessInfo)
     const requestsRef = ref(db, DB_PATHS.SELLER_REQUESTS)

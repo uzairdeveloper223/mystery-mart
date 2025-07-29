@@ -96,7 +96,7 @@ export default function SellPage() {
 
   // Check seller status and show appropriate UI
   const renderSellerStatus = () => {
-    if (!user.isApprovedSeller && user.sellerApplicationStatus === "none") {
+    if (!user.isApprovedSeller && (!user.sellerApplicationStatus || user.sellerApplicationStatus === "none")) {
       return (
         <Card className="mb-8">
           <CardHeader>
