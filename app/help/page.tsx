@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,6 +17,9 @@ import { Badge } from "@/components/ui/badge"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/components/providers/auth-provider"
+import { FirebaseService } from "@/lib/firebase-service"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import {
   Search,
   MessageCircle,
@@ -180,8 +184,11 @@ const faqData = [
 
 export default function HelpPage() {
   const { toast } = useToast()
+  const router = useRouter()
+  const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [contactForm, setContactForm] = useState({
     name: "",
     email: "",
@@ -216,13 +223,33 @@ export default function HelpPage() {
       return
     }
 
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to send a message to admin",
+        variant: "destructive",
+      })
+      router.push("/auth/login")
+      return
+    }
+
+    setIsSubmitting(true)
     try {
-      // In a real app, this would send to your support system
-      console.log("Support ticket:", contactForm)
+      await FirebaseService.createAdminMessage({
+        userId: user.uid,
+        subject: contactForm.subject.trim(),
+        content: `From: ${contactForm.name} (${contactForm.email})\n\n${contactForm.message.trim()}`,
+        priority: contactForm.priority as "low" | "medium" | "high" | "urgent",
+        status: "open",
+        type: "support_request",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        responses: [],
+      })
 
       toast({
-        title: "Support Ticket Submitted",
-        description: "We'll get back to you within 24 hours",
+        title: "Message Sent Successfully",
+        description: "Your message has been sent to the admin. We'll get back to you within 24 hours.",
       })
 
       setContactForm({
@@ -233,11 +260,14 @@ export default function HelpPage() {
         message: "",
       })
     } catch (error) {
+      console.error("Failed to send message:", error)
       toast({
         title: "Error",
-        description: "Failed to submit support ticket",
+        description: "Failed to send message. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -272,7 +302,12 @@ export default function HelpPage() {
               <MessageCircle className="h-12 w-12 text-blue-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Live Chat</h3>
               <p className="text-muted-foreground mb-4">Get instant help from our support team</p>
-              <Button className="mystery-gradient text-white">Start Chat</Button>
+              <Button 
+                className="mystery-gradient text-white" 
+                onClick={() => router.push("/contact-admin")}
+              >
+                Start Chat
+              </Button>
             </CardContent>
           </Card>
 
@@ -281,7 +316,12 @@ export default function HelpPage() {
               <Mail className="h-12 w-12 text-green-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Email Support</h3>
               <p className="text-muted-foreground mb-4">Send us a detailed message</p>
-              <Button variant="outline">Send Email</Button>
+              <Button 
+                variant="outline" 
+                onClick={() => router.push("/contact-admin")}
+              >
+                Send Email
+              </Button>
             </CardContent>
           </Card>
 
@@ -290,7 +330,7 @@ export default function HelpPage() {
               <Phone className="h-12 w-12 text-purple-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Phone Support</h3>
               <p className="text-muted-foreground mb-4">Call us for urgent issues</p>
-              <Button variant="outline">+1 (555) 123-4567</Button>
+              <Button variant="outline">+92 316 0973694</Button>
             </CardContent>
           </Card>
         </div>
@@ -468,8 +508,19 @@ export default function HelpPage() {
                       />
                     </div>
 
-                    <Button type="submit" className="w-full mystery-gradient text-white">
-                      Send Message
+                    <Button 
+                      type="submit" 
+                      className="w-full mystery-gradient text-white"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <LoadingSpinner className="mr-2 h-4 w-4" />
+                          Sending...
+                        </>
+                      ) : (
+                        "Send Message"
+                      )}
                     </Button>
                   </form>
                 </CardContent>
@@ -485,14 +536,14 @@ export default function HelpPage() {
                       <Mail className="h-5 w-5 text-blue-500" />
                       <div>
                         <p className="font-medium">Email</p>
-                        <p className="text-sm text-muted-foreground">support@mysterymart.com</p>
+                        <p className="text-sm text-muted-foreground">uzairxdev223@gmail.com</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">
                       <Phone className="h-5 w-5 text-green-500" />
                       <div>
                         <p className="font-medium">Phone</p>
-                        <p className="text-sm text-muted-foreground">+1 (555) 123-4567</p>
+                        <p className="text-sm text-muted-foreground">+92 316 0973694</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">

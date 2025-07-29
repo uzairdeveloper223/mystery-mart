@@ -28,6 +28,7 @@ export default function SettingsPage() {
   const { toast } = useToast()
 
   const [loading, setLoading] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [addresses, setAddresses] = useState<Address[]>([])
   const [showVerificationRequest, setShowVerificationRequest] = useState(false)
   const [verificationMessage, setVerificationMessage] = useState("")
@@ -132,6 +133,70 @@ export default function SettingsPage() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !user) return
+
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please select an image smaller than 5MB",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please select an image file (JPG, PNG, GIF)",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setUploadingPhoto(true)
+    try {
+      // Upload to ImgBB
+      const formData = new FormData()
+      formData.append("image", file)
+
+      const response = await fetch("https://api.imgbb.com/1/upload?key=a1deed7e7b58edf34021f788161121f4", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        // Update user profile with new image URL
+        await FirebaseService.updateUser(user.uid, {
+          profilePicture: data.data.url,
+        })
+
+        toast({
+          title: "Photo Updated",
+          description: "Your profile photo has been updated successfully",
+        })
+
+        // Trigger a refresh of user data
+        window.location.reload()
+      } else {
+        throw new Error("Upload failed")
+      }
+    } catch (error) {
+      console.error("Failed to upload photo:", error)
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload profile photo. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setUploadingPhoto(false)
     }
   }
 
@@ -275,9 +340,21 @@ export default function SettingsPage() {
                         <AvatarFallback className="text-xl">{user.fullName?.charAt(0) || "U"}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <Button type="button" variant="outline">
+                        <input
+                          type="file"
+                          id="profile-photo-upload"
+                          accept="image/*"
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                        />
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                          onClick={() => document.getElementById('profile-photo-upload')?.click()}
+                          disabled={uploadingPhoto}
+                        >
                           <Upload className="h-4 w-4 mr-2" />
-                          Change Photo
+                          {uploadingPhoto ? "Uploading..." : "Change Photo"}
                         </Button>
                         <p className="text-sm text-muted-foreground mt-2">JPG, PNG or GIF. Max size 5MB.</p>
                       </div>

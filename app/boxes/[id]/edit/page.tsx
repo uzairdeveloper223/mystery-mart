@@ -92,21 +92,21 @@ export default function EditBoxPage() {
 
       setBox(boxData)
       setFormData({
-        title: boxData.title,
-        description: boxData.description,
-        category: boxData.category,
-        price: boxData.price.toString(),
-        originalValue: boxData.originalValue?.toString() || "",
-        rarity: boxData.rarity,
-        quantity: boxData.quantity.toString(),
+        title: boxData.title || "",
+        description: boxData.description || "",
+        category: boxData.category || "",
+        price: boxData.price?.toString() || "",
+        originalValue: boxData.estimatedValue?.min?.toString() || "",
+        rarity: boxData.rarity || "common",
+        quantity: "1", // Mystery boxes typically have quantity 1
         images: boxData.images || [],
-        items: boxData.items || [],
+        items: [], // Items are not stored in the current MysteryBox structure
         tags: boxData.tags || [],
         isActive: boxData.status === "active",
-        allowInternationalShipping: boxData.allowInternationalShipping || false,
-        shippingCost: boxData.shippingCost?.toString() || "0",
-        processingTime: boxData.processingTime || "1-2",
-        returnPolicy: boxData.returnPolicy || "no-returns",
+        allowInternationalShipping: boxData.shipping?.freeShipping || false,
+        shippingCost: boxData.shipping?.shippingCost?.toString() || "0",
+        processingTime: boxData.shipping?.processingTime || "1-2",
+        returnPolicy: "no-returns", // Default value
       })
     } catch (error) {
       console.error("Failed to fetch box data:", error)
@@ -139,7 +139,7 @@ export default function EditBoxPage() {
         const formData = new FormData()
         formData.append("image", file)
 
-        const response = await fetch("https://api.imgbb.com/1/upload?key=YOUR_IMGBB_KEY", {
+        const response = await fetch("https://api.imgbb.com/1/upload?key=a1deed7e7b58edf34021f788161121f4", {
           method: "POST",
           body: formData,
         })
@@ -225,17 +225,23 @@ export default function EditBoxPage() {
         description: formData.description,
         category: formData.category,
         price: Number.parseFloat(formData.price),
-        originalValue: Number.parseFloat(formData.originalValue) || undefined,
+        estimatedValue: {
+          min: Number.parseFloat(formData.originalValue) || Number.parseFloat(formData.price),
+          max: Number.parseFloat(formData.originalValue) * 1.5 || Number.parseFloat(formData.price) * 2,
+        },
         rarity: formData.rarity as MysteryBox["rarity"],
-        quantity: Number.parseInt(formData.quantity),
         images: formData.images,
-        items: formData.items,
         tags: formData.tags,
         status: formData.isActive ? "active" : ("inactive" as MysteryBox["status"]),
-        allowInternationalShipping: formData.allowInternationalShipping,
-        shippingCost: Number.parseFloat(formData.shippingCost),
-        processingTime: formData.processingTime,
-        returnPolicy: formData.returnPolicy,
+        shipping: {
+          freeShipping: Number.parseFloat(formData.shippingCost) === 0,
+          shippingCost: Number.parseFloat(formData.shippingCost),
+          processingTime: formData.processingTime,
+          weight: 1, // Default weight
+          dimensions: { length: 10, width: 10, height: 10 }, // Default dimensions
+          shippingMethods: ["Standard", "Express"],
+        },
+        updatedAt: new Date().toISOString(),
       }
 
       await FirebaseService.updateBox(box.id, updateData)

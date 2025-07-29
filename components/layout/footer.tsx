@@ -60,6 +60,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/contact-admin" className="text-muted-foreground hover:text-primary">
+                  Contact Admin
+                </Link>
+              </li>
+              <li>
                 <Link href="/about" className="text-muted-foreground hover:text-primary">
                   About Us
                 </Link>

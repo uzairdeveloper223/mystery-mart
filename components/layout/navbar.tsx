@@ -278,6 +278,10 @@ export function Navbar() {
                       <HelpCircle className="mr-2 h-4 w-4" />
                       <span>Help & Support</span>
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/contact-admin")}>
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      <span>Contact Admin</span>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout}>
                       <LogOut className="mr-2 h-4 w-4" />

@@ -412,7 +412,11 @@ export default function BoxDetailPage() {
 
               {isOwner && (
                 <div className="space-y-2">
-                  <Button variant="outline" className="w-full bg-transparent">
+                  <Button 
+                    variant="outline" 
+                    className="w-full bg-transparent"
+                    onClick={() => router.push(`/boxes/${box.id}/edit`)}
+                  >
                     Edit Listing
                   </Button>
                   <Button variant="destructive" className="w-full">
