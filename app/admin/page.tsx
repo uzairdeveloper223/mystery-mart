@@ -30,6 +30,8 @@ import {
   UserCheck,
   Activity,
   TrendingUp,
+  Send,
+  Bell,
 } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { FirebaseService } from "@/lib/firebase-service"
@@ -71,6 +73,16 @@ export default function AdminPage() {
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null)
   const [dataLoading, setDataLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // Custom notification states
+  const [notificationForm, setNotificationForm] = useState({
+    selectedUserId: "",
+    notificationType: "system" as "message" | "order" | "payment" | "verification" | "system" | "admin",
+    title: "",
+    message: "",
+    actionUrl: "",
+  })
+  const [sendingNotification, setSendingNotification] = useState(false)
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -316,6 +328,53 @@ export default function AdminPage() {
     }
   }
 
+  const sendCustomNotification = async () => {
+    if (!notificationForm.selectedUserId || !notificationForm.title || !notificationForm.message) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setSendingNotification(true)
+
+      await FirebaseService.createNotification({
+        userId: notificationForm.selectedUserId,
+        type: notificationForm.notificationType,
+        title: notificationForm.title,
+        message: notificationForm.message,
+        isRead: false,
+        actionUrl: notificationForm.actionUrl || undefined,
+      })
+
+      toast({
+        title: "Success",
+        description: "Custom notification sent successfully",
+      })
+
+      // Reset form
+      setNotificationForm({
+        selectedUserId: "",
+        notificationType: "system",
+        title: "",
+        message: "",
+        actionUrl: "",
+      })
+    } catch (error) {
+      console.error("Error sending notification:", error)
+      toast({
+        title: "Error",
+        description: "Failed to send notification",
+        variant: "destructive",
+      })
+    } finally {
+      setSendingNotification(false)
+    }
+  }
+
   if (loading || dataLoading) {
     return <LoadingSpinner />
   }
@@ -409,7 +468,7 @@ export default function AdminPage() {
 
         {/* Admin Tabs */}
         <Tabs defaultValue="platform-settings" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="platform-settings">Settings</TabsTrigger>
             <TabsTrigger value="seller-applications">Sellers ({sellerApplications?.length || 0})</TabsTrigger>
             <TabsTrigger value="verifications">Verify ({verificationRequests?.length || 0})</TabsTrigger>
@@ -417,6 +476,7 @@ export default function AdminPage() {
             <TabsTrigger value="user-management">Users</TabsTrigger>
             <TabsTrigger value="messages">Messages ({adminMessages?.length || 0})</TabsTrigger>
             <TabsTrigger value="reports">Reports ({reports?.length || 0})</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
@@ -1046,6 +1106,150 @@ export default function AdminPage() {
                       <p className="text-muted-foreground">No active reports</p>
                     </div>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Send Custom Notification
+                </CardTitle>
+                <CardDescription>Send a custom notification to any user on the platform</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="user-select">Select User</Label>
+                      <Select
+                        value={notificationForm.selectedUserId}
+                        onValueChange={(value) =>
+                          setNotificationForm((prev) => ({ ...prev, selectedUserId: value }))
+                        }
+                      >
+                        <SelectTrigger id="user-select">
+                          <SelectValue placeholder="Choose a user..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allUsers.map((user) => (
+                            <SelectItem key={user.uid} value={user.uid}>
+                              {user.username} ({user.email})
+                              {user.isVerified && " ✓"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="notification-type">Notification Type</Label>
+                      <Select
+                        value={notificationForm.notificationType}
+                        onValueChange={(value: any) =>
+                          setNotificationForm((prev) => ({ ...prev, notificationType: value }))
+                        }
+                      >
+                        <SelectTrigger id="notification-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="system">System</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="message">Message</SelectItem>
+                          <SelectItem value="order">Order</SelectItem>
+                          <SelectItem value="payment">Payment</SelectItem>
+                          <SelectItem value="verification">Verification</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="notification-title">Title</Label>
+                      <Input
+                        id="notification-title"
+                        placeholder="Enter notification title..."
+                        value={notificationForm.title}
+                        onChange={(e) =>
+                          setNotificationForm((prev) => ({ ...prev, title: e.target.value }))
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="action-url">Action URL (Optional)</Label>
+                      <Input
+                        id="action-url"
+                        placeholder="e.g., /orders/123"
+                        value={notificationForm.actionUrl}
+                        onChange={(e) =>
+                          setNotificationForm((prev) => ({ ...prev, actionUrl: e.target.value }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="notification-message">Message</Label>
+                      <Textarea
+                        id="notification-message"
+                        placeholder="Enter notification message..."
+                        value={notificationForm.message}
+                        onChange={(e) =>
+                          setNotificationForm((prev) => ({ ...prev, message: e.target.value }))
+                        }
+                        rows={8}
+                      />
+                    </div>
+
+                    <Button
+                      onClick={sendCustomNotification}
+                      disabled={sendingNotification || !notificationForm.selectedUserId || !notificationForm.title || !notificationForm.message}
+                      className="w-full"
+                    >
+                      {sendingNotification ? (
+                        <>
+                          <Clock className="h-4 w-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Send Notification
+                        </>
+                      )}
+                    </Button>
+
+                    {notificationForm.selectedUserId && (
+                      <div className="p-4 bg-muted rounded-lg">
+                        <h4 className="font-medium mb-2">Preview:</h4>
+                        <div className="space-y-2 text-sm">
+                          <div>
+                            <span className="font-medium">To:</span>{" "}
+                            {allUsers.find((u) => u.uid === notificationForm.selectedUserId)?.username}
+                          </div>
+                          <div>
+                            <span className="font-medium">Type:</span> {notificationForm.notificationType}
+                          </div>
+                          <div>
+                            <span className="font-medium">Title:</span> {notificationForm.title || "No title"}
+                          </div>
+                          <div>
+                            <span className="font-medium">Message:</span> {notificationForm.message || "No message"}
+                          </div>
+                          {notificationForm.actionUrl && (
+                            <div>
+                              <span className="font-medium">Action URL:</span> {notificationForm.actionUrl}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -257,8 +257,8 @@ export default function MessagesPage() {
   const filteredConversations = conversations.filter((conversation) => {
     const otherParticipant = getOtherParticipant(conversation)
     return (
-      otherParticipant?.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conversation.lastMessage?.content.toLowerCase().includes(searchQuery.toLowerCase())
+      otherParticipant?.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      conversation.lastMessage?.content?.toLowerCase().includes(searchQuery.toLowerCase())
     )
   })
 
