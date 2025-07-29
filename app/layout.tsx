@@ -14,14 +14,14 @@ export const metadata: Metadata = {
   description:
     "Discover amazing mystery boxes filled with surprises. Buy, sell, and trade mystery boxes with our community.",
   keywords: "mystery boxes, surprise boxes, collectibles, trading, marketplace",
-  authors: [{ name: "Mystery Mart Team" }],
+  authors: [{ name: "Uzair Developer" }],
   creator: "Mystery Mart",
   publisher: "Mystery Mart",
   robots: "index, follow",
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://mysterymart.com",
+    url: "https://mystery-mart-app.vercel.app",
     title: "Mystery Mart - Discover Amazing Mystery Boxes",
     description:
       "Discover amazing mystery boxes filled with surprises. Buy, sell, and trade mystery boxes with our community.",
@@ -32,9 +32,9 @@ export const metadata: Metadata = {
     title: "Mystery Mart - Discover Amazing Mystery Boxes",
     description:
       "Discover amazing mystery boxes filled with surprises. Buy, sell, and trade mystery boxes with our community.",
-    creator: "@mysterymart",
+    creator: "@mughal_x22",
   },
-    generator: 'v0.dev'
+    generator: 'Uzair'
 }
 
 export default function RootLayout({
