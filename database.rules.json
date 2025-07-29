@@ -8,6 +8,9 @@
     "orders": {
       ".indexOn": ["buyerId", "sellerId", "status", "createdAt"]
     },
+    "addresses": {
+      ".indexOn": ["userId", "createdAt"]
+    },
     "users": {
       ".indexOn": ["email", "username", "isVerified"]
     },
