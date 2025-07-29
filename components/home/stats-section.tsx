@@ -75,7 +75,7 @@ export function StatsSection() {
     },
     {
       icon: Star,
-      value: loading ? "..." : `${stats.averageRating.toFixed(1)}/5`,
+      value: loading ? "..." : `${(stats.averageRating || 0).toFixed(1)}/5`,
       label: "Average Rating",
       description: "Customer satisfaction",
       color: "text-yellow-500",

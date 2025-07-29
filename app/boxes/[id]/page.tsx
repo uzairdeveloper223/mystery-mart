@@ -353,7 +353,7 @@ export default function BoxDetailPage() {
                 </div>
                 <div className="flex items-center space-x-1">
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm text-muted-foreground">{box.seller.rating.toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">{(box.seller?.rating || 0).toFixed(1)}</span>
                 </div>
               </div>
               {!isOwner && (

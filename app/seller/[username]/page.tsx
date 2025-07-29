@@ -342,7 +342,7 @@ export default function SellerProfilePage() {
                   <div className="text-center">
                     <div className="flex items-center justify-center mb-2">
                       <Star className="h-5 w-5 text-yellow-400 mr-1" />
-                      <span className="text-2xl font-bold">{seller.rating.toFixed(1)}</span>
+                      <span className="text-2xl font-bold">{(seller.rating || 0).toFixed(1)}</span>
                     </div>
                     <p className="text-sm text-muted-foreground">Rating</p>
                     <p className="text-xs text-muted-foreground">({completedOrders} orders)</p>
@@ -364,7 +364,7 @@ export default function SellerProfilePage() {
                   <div className="text-center">
                     <div className="flex items-center justify-center mb-2">
                       <DollarSign className="h-5 w-5 text-purple-500 mr-1" />
-                      <span className="text-2xl font-bold">${averageOrderValue.toFixed(0)}</span>
+                      <span className="text-2xl font-bold">${(averageOrderValue || 0).toFixed(0)}</span>
                     </div>
                     <p className="text-sm text-muted-foreground">Avg Order</p>
                   </div>
@@ -512,7 +512,7 @@ export default function SellerProfilePage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-sm">Total Revenue</span>
-                <span className="text-sm font-medium">${totalRevenue.toFixed(0)}</span>
+                <span className="text-sm font-medium">${(totalRevenue || 0).toFixed(0)}</span>
               </div>
             </CardContent>
           </Card>
@@ -561,7 +561,7 @@ export default function SellerProfilePage() {
               <div className="flex justify-between">
                 <span className="text-sm">Avg Price</span>
                 <span className="text-sm font-medium">
-                  ${boxes.length > 0 ? (boxes.reduce((sum, box) => sum + box.price, 0) / boxes.length).toFixed(0) : "0"}
+                  ${boxes.length > 0 ? (boxes.reduce((sum, box) => sum + (box.price || 0), 0) / boxes.length).toFixed(0) : "0"}
                 </span>
               </div>
             </CardContent>

@@ -367,7 +367,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Revenue</p>
-                  <p className="text-2xl font-bold">${(stats.totalRevenue / 1000000).toFixed(1)}M</p>
+                  <p className="text-2xl font-bold">${((stats.totalRevenue || 0) / 1000000).toFixed(1)}M</p>
                 </div>
                 <DollarSign className="h-8 w-8 text-purple-500" />
               </div>

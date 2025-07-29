@@ -212,8 +212,8 @@ export default function OrderDetailPage() {
                       <p className="text-sm text-muted-foreground">Category: {box?.category || "Unknown"}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">${item.price.toFixed(2)}</p>
-                      <p className="text-sm text-muted-foreground">Total: ${(item.price * item.quantity).toFixed(2)}</p>
+                      <p className="font-semibold">${(item.price || 0).toFixed(2)}</p>
+                      <p className="text-sm text-muted-foreground">Total: ${((item.price || 0) * item.quantity).toFixed(2)}</p>
                     </div>
                   </div>
                 ))}
@@ -346,7 +346,7 @@ export default function OrderDetailPage() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>${order.paymentDetails.amount.toFixed(2)}</span>
+                  <span>${(order.paymentDetails?.amount || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Shipping</span>
@@ -355,7 +355,7 @@ export default function OrderDetailPage() {
                 <Separator />
                 <div className="flex justify-between font-semibold">
                   <span>Total</span>
-                  <span>${(order.paymentDetails.amount + (order.shippingCost || 0)).toFixed(2)}</span>
+                  <span>${((order.paymentDetails?.amount || 0) + (order.shippingCost || 0)).toFixed(2)}</span>
                 </div>
               </CardContent>
             </Card>

@@ -453,7 +453,7 @@ export default function SettingsPage() {
                       </div>
                       <div className="flex items-center space-x-1">
                         <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                        <span className="font-semibold">{user.rating.toFixed(1)}</span>
+                        <span className="font-semibold">{(user.rating || 0).toFixed(1)}</span>
                       </div>
                     </div>
                   </CardContent>
