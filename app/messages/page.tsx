@@ -211,7 +211,9 @@ export default function MessagesPage() {
 
   const getOtherParticipant = (conversation: Conversation): UserProfile | null => {
     if (!user) return null
-    return conversation.participants.find((p) => p.id !== user.uid) || null
+    const participantIds = Object.keys(conversation.participants)
+    const otherUserId = participantIds.find(id => id !== user.uid)
+    return otherUserId ? { id: otherUserId } as UserProfile : null
   }
 
   const isUserOnline = (userId: string): boolean => {

@@ -149,6 +149,14 @@ export interface Address {
   updatedAt: string
 }
 
+export interface Conversation {
+  id: string
+  participants: { [userId: string]: boolean }
+  createdAt: string
+  lastMessageAt: string
+  lastMessage?: string
+}
+
 export interface Message {
   id: string
   conversationId: string
@@ -158,6 +166,7 @@ export interface Message {
   type: "text" | "image" | "file" | "system"
   status: "sent" | "delivered" | "read"
   createdAt: string
+  readBy?: string[]
   attachments?: Array<{
     type: string
     url: string
