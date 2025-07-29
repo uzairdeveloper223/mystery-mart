@@ -341,14 +341,20 @@ export default function AdminPage() {
     try {
       setSendingNotification(true)
 
-      await FirebaseService.createNotification({
+      const notificationData: any = {
         userId: notificationForm.selectedUserId,
         type: notificationForm.notificationType,
         title: notificationForm.title,
         message: notificationForm.message,
         isRead: false,
-        actionUrl: notificationForm.actionUrl || undefined,
-      })
+      }
+
+      // Only include actionUrl if it has a value
+      if (notificationForm.actionUrl && notificationForm.actionUrl.trim()) {
+        notificationData.actionUrl = notificationForm.actionUrl.trim()
+      }
+
+      await FirebaseService.createNotification(notificationData)
 
       toast({
         title: "Success",

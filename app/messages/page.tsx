@@ -47,6 +47,7 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -78,6 +79,10 @@ export default function MessagesPage() {
 
     try {
       setLoading(true)
+
+      // Fetch all users for participant lookup
+      const users = await FirebaseService.getAllUsers()
+      setAllUsers(users)
 
       // Subscribe to real-time conversations
       const unsubscribeConversations = FirebaseService.subscribeToUserConversations(
@@ -213,7 +218,12 @@ export default function MessagesPage() {
     if (!user) return null
     const participantIds = Object.keys(conversation.participants)
     const otherUserId = participantIds.find(id => id !== user.uid)
-    return otherUserId ? { id: otherUserId } as UserProfile : null
+    
+    if (!otherUserId) return null
+    
+    // Find the user in allUsers if available, otherwise return basic info
+    const foundUser = allUsers.find(u => u.uid === otherUserId)
+    return foundUser || { uid: otherUserId, username: "Unknown User", fullName: "Unknown User" } as UserProfile
   }
 
   const isUserOnline = (userId: string): boolean => {
@@ -257,7 +267,7 @@ export default function MessagesPage() {
   const filteredConversations = conversations.filter((conversation) => {
     const otherParticipant = getOtherParticipant(conversation)
     return (
-      otherParticipant?.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (otherParticipant?.fullName || otherParticipant?.username)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conversation.lastMessage?.content?.toLowerCase().includes(searchQuery.toLowerCase())
     )
   })
@@ -305,7 +315,7 @@ export default function MessagesPage() {
                     filteredConversations.map((conversation, index) => {
                       const otherParticipant = getOtherParticipant(conversation)
                       const isActive = activeConversation?.id === conversation.id
-                      const isOnline = otherParticipant ? isUserOnline(otherParticipant.id) : false
+                      const isOnline = otherParticipant ? isUserOnline(otherParticipant.uid) : false
 
                       return (
                         <motion.div
@@ -325,9 +335,9 @@ export default function MessagesPage() {
                               <Avatar className="h-12 w-12">
                                 <AvatarImage
                                   src={otherParticipant?.profilePicture || "/placeholder.svg"}
-                                  alt={otherParticipant?.displayName || "User"}
+                                  alt={otherParticipant?.fullName || otherParticipant?.username || "User"}
                                 />
-                                <AvatarFallback>{otherParticipant?.displayName?.charAt(0) || "U"}</AvatarFallback>
+                                <AvatarFallback>{(otherParticipant?.fullName || otherParticipant?.username)?.charAt(0) || "U"}</AvatarFallback>
                               </Avatar>
                               {isOnline && (
                                 <motion.div
@@ -340,7 +350,7 @@ export default function MessagesPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
                                 <p className="font-semibold truncate">
-                                  {otherParticipant?.displayName || "Unknown User"}
+                                  {otherParticipant?.fullName || otherParticipant?.username || "Unknown User"}
                                 </p>
                                 {conversation.lastMessage && (
                                   <span className="text-xs text-muted-foreground">
