@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/components/providers/auth-provider"
 import { useCart } from "@/hooks/use-cart"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"

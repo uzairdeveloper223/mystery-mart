@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { FirebaseService } from "@/lib/firebase-service"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/components/providers/auth-provider"
 import type { Notification } from "@/lib/types"
 
 export function useNotifications() {

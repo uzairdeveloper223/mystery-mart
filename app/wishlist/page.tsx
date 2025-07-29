@@ -1,6 +1,6 @@
 "use client"
 
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/components/providers/auth-provider"
 import { useWishlist } from "@/hooks/use-wishlist"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/layout/navbar"

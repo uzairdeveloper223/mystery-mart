@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/components/providers/auth-provider"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"

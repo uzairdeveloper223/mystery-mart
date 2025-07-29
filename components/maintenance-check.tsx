@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useEffect, useState } from "react"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/components/providers/auth-provider"
 import { FirebaseService } from "@/lib/firebase-service"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

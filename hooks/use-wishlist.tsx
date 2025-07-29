@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect, createContext, useContext } from "react"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/components/providers/auth-provider"
 import type { MysteryBox } from "@/lib/types"
 
 interface WishlistContextType {

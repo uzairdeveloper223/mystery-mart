@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/components/providers/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -260,7 +260,17 @@ export default function RegisterPage() {
             <Button
               type="submit"
               className="w-full mystery-gradient text-white"
-              disabled={loading || !usernameAvailable || !isValidPassword(formData.password)}
+              disabled={
+                loading ||
+                !formData.email ||
+                !formData.fullName ||
+                !formData.username ||
+                !formData.password ||
+                !formData.confirmPassword ||
+                !usernameAvailable ||
+                !isValidPassword(formData.password) ||
+                formData.password !== formData.confirmPassword
+              }
             >
               {loading ? "Creating account..." : "Create Account"}
             </Button>
