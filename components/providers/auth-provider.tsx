@@ -48,10 +48,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(userProfile)
           } else {
             // User exists in Firebase Auth but not in database, create profile
+            // Generate a unique temporary username to avoid conflicts
+            const baseUsername = firebaseUser.email!.split("@")[0]
+            const timestamp = Date.now().toString().slice(-6) // Last 6 digits
+            const tempUsername = `${baseUsername}_${timestamp}`
+            
             const newProfile: Partial<UserProfile> = {
               uid: firebaseUser.uid,
               email: firebaseUser.email!,
-              username: firebaseUser.email!.split("@")[0], // Temporary username
+              username: tempUsername,
               fullName: firebaseUser.displayName || "User",
               isVerified: false,
               isEmailVerified: true,
@@ -167,6 +172,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const updateUsername = async (newUsername: string): Promise<boolean> => {
+    if (!user) return false
+
+    try {
+      // Check if username is available
+      const isAvailable = await FirebaseService.checkUsernameAvailability(newUsername)
+      if (!isAvailable) {
+        throw new Error("Username is already taken")
+      }
+
+      // Update user profile with new username
+      await FirebaseService.updateUser(user.uid, { username: newUsername })
+      
+      // Refresh user data to get updated info
+      await refreshUser()
+      
+      return true
+    } catch (error) {
+      console.error("Failed to update username:", error)
+      return false
+    }
+  }
+
+  const hasTemporaryUsername = (): boolean => {
+    if (!user) return false
+    // Check if username contains timestamp pattern (ends with _xxxxxx)
+    return /_\d{6}$/.test(user.username)
+  }
+
   const generateProfilePicture = (fullName: string): string => {
     const colors = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#43e97b"]
     const randomColor = colors[Math.floor(Math.random() * colors.length)]
@@ -192,6 +226,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkUsernameAvailability,
     updateProfile,
     refreshUser,
+    updateUsername,
+    hasTemporaryUsername,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
