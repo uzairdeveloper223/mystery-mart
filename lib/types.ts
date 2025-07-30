@@ -62,11 +62,13 @@ export interface MysteryBox {
     profilePicture?: string
   }
   tags: string[]
-  status: "active" | "sold" | "pending" | "removed" | "rejected"
+  status: "active" | "sold" | "pending" | "removed" | "rejected" | "out_of_stock"
   createdAt: string
   updatedAt: string
   views: number
   likes: number
+  quantity: number
+  soldQuantity: number
   isRevealed: boolean
   revealedContent?: {
     items: Array<{

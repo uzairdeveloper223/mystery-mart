@@ -49,42 +49,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (userProfile) {
             setUser(userProfile)
           } else {
-            // User exists in Firebase Auth but not in database, create profile
-            // Generate a unique temporary username to avoid conflicts
-            const baseUsername = firebaseUser.email!.split("@")[0]
-            const timestamp = Date.now().toString().slice(-6) // Last 6 digits
-            const tempUsername = `${baseUsername}_${timestamp}`
-            
-            const newProfile: Partial<UserProfile> = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email!,
-              username: tempUsername,
-              fullName: firebaseUser.displayName || "User",
-              isVerified: false,
-              isEmailVerified: true,
-              loyaltyTier: "bronze",
-              rating: 0,
-              totalSales: 0,
-              totalPurchases: 0,
-              preferences: {
-                emailNotifications: true,
-                pushNotifications: true,
-                marketingEmails: false,
-                theme: "system",
-              },
-              stats: {
-                totalRevenue: 0,
-                averageRating: 0,
-                responseTime: 0,
-                fulfillmentRate: 0,
-                returnRate: 0,
-              },
-            }
-
-            await FirebaseService.createUser(firebaseUser.uid, newProfile)
-            await FirebaseService.reserveUsername(tempUsername, firebaseUser.uid)
-            const createdProfile = await FirebaseService.getUser(firebaseUser.uid)
-            setUser(createdProfile)
+            // User exists in Firebase Auth but not in database
+            // This should only happen in rare cases, so we'll create a minimal profile
+            // and let the user update their information
+            console.warn("User profile not found in database, this should not happen during normal registration")
+            setUser(null)
           }
         } catch (error) {
           console.error("Error fetching user profile:", error)

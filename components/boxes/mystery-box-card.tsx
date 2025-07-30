@@ -3,12 +3,16 @@
 import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Heart, Star, Shield, Eye, ShoppingCart } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/components/providers/auth-provider"
+import { useToast } from "@/hooks/use-toast"
+import { FirebaseService } from "@/lib/firebase-service"
 
 interface MysteryBox {
   id: string
@@ -35,9 +39,41 @@ interface MysteryBoxCardProps {
 export function MysteryBoxCard({ box }: MysteryBoxCardProps) {
   const [isLiked, setIsLiked] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const router = useRouter()
 
   const getRarityClass = (rarity: string) => {
     return `rarity-${rarity}`
+  }
+
+  const handleBuyNow = async (e: React.MouseEvent) => {
+    e.preventDefault() // Prevent navigation if this is inside a Link
+    
+    if (!user) {
+      router.push("/auth/login")
+      return
+    }
+
+    try {
+      // Use the initiatePurchase function from FirebaseService
+      const conversationId = await FirebaseService.initiatePurchase(user.uid, box.id)
+      
+      toast({
+        title: "Purchase Inquiry Sent",
+        description: "A message has been sent to the seller. Check your messages for further instructions.",
+      })
+
+      // Redirect to the conversation
+      router.push(`/messages?conversation=${conversationId}`)
+    } catch (error) {
+      console.error("Buy now error:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to initiate purchase",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -138,7 +174,7 @@ export function MysteryBoxCard({ box }: MysteryBoxCardProps) {
               View Details
             </Button>
           </Link>
-          <Button className="flex-1 mystery-gradient text-white">
+          <Button className="flex-1 mystery-gradient text-white" onClick={handleBuyNow}>
             <ShoppingCart className="mr-2 h-4 w-4" />
             Buy Now
           </Button>

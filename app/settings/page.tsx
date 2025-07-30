@@ -26,7 +26,7 @@ import { User, Settings, Bell, MapPin, Shield, CheckCircle, Clock, X, Upload, St
 import type { Address } from "@/lib/types"
 
 export default function SettingsPage() {
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, refreshUser } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
 
@@ -53,7 +53,16 @@ export default function SettingsPage() {
     isDefault: false,
   })
 
-  // Security states removed
+  // Security states
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  })
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState("")
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const [profileData, setProfileData] = useState({
     fullName: "",
@@ -116,6 +125,9 @@ export default function SettingsPage() {
           instagram: profileData.instagram,
         },
       })
+
+      // Refresh user data to reflect changes immediately
+      await refreshUser()
 
       toast({
         title: "Profile Updated",
@@ -206,7 +218,7 @@ export default function SettingsPage() {
         })
 
         // Trigger a refresh of user data
-        window.location.reload()
+        await refreshUser()
       } else {
         throw new Error("Upload failed")
       }
@@ -441,7 +453,147 @@ export default function SettingsPage() {
     }
   }
 
-  // Password and account deletion functions removed
+  // Password and account deletion functions
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+
+    // Validate password form
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Please fill in all password fields",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords do not match",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "New password must be at least 6 characters long",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setPasswordLoading(true)
+    try {
+      // Import Firebase Auth functions
+      const { getAuth, updatePassword, reauthenticateWithCredential, EmailAuthProvider } = await import("firebase/auth")
+      
+      const auth = getAuth()
+      const currentUser = auth.currentUser
+
+      if (!currentUser) {
+        throw new Error("No authenticated user found")
+      }
+
+      // Re-authenticate user with current password
+      const credential = EmailAuthProvider.credential(currentUser.email!, passwordForm.currentPassword)
+      await reauthenticateWithCredential(currentUser, credential)
+
+      // Update password
+      await updatePassword(currentUser, passwordForm.newPassword)
+
+      toast({
+        title: "Password Updated",
+        description: "Your password has been changed successfully",
+      })
+
+      // Clear form
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      })
+    } catch (error: any) {
+      console.error("Failed to update password:", error)
+      
+      let errorMessage = "Failed to update password"
+      if (error.code === "auth/wrong-password") {
+        errorMessage = "Current password is incorrect"
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "New password is too weak"
+      } else if (error.code === "auth/requires-recent-login") {
+        errorMessage = "Please log out and log back in before changing your password"
+      }
+
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
+
+  const handleAccountDeletion = async () => {
+    if (!user) return
+
+    if (deleteConfirmation !== "DELETE") {
+      toast({
+        title: "Error",
+        description: "Please type 'DELETE' to confirm account deletion",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setDeleteLoading(true)
+    try {
+      // Import Firebase Auth functions
+      const { getAuth, deleteUser } = await import("firebase/auth")
+      
+      const auth = getAuth()
+      const currentUser = auth.currentUser
+
+      if (!currentUser) {
+        throw new Error("No authenticated user found")
+      }
+
+      // Delete user data from database first
+      await FirebaseService.deleteUserData(user.uid)
+
+      // Delete Firebase Auth user
+      await deleteUser(currentUser)
+
+      toast({
+        title: "Account Deleted",
+        description: "Your account has been permanently deleted",
+      })
+
+      // Redirect to home page
+      router.push("/")
+    } catch (error: any) {
+      console.error("Failed to delete account:", error)
+      
+      let errorMessage = "Failed to delete account"
+      if (error.code === "auth/requires-recent-login") {
+        errorMessage = "Please log out and log back in before deleting your account"
+      }
+
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setDeleteLoading(false)
+      setShowDeleteDialog(false)
+      setDeleteConfirmation("")
+    }
+  }
 
   if (authLoading) {
     return <LoadingSpinner />
@@ -1009,6 +1161,7 @@ export default function SettingsPage() {
                               <SelectItem value="CA">Canada</SelectItem>
                               <SelectItem value="GB">United Kingdom</SelectItem>
                               <SelectItem value="AU">Australia</SelectItem>
+                              <SelectItem value="PK">Pakistan</SelectItem>
                               <SelectItem value="DE">Germany</SelectItem>
                               <SelectItem value="FR">France</SelectItem>
                               <SelectItem value="JP">Japan</SelectItem>
@@ -1101,6 +1254,147 @@ export default function SettingsPage() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Change Password Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Change Password</CardTitle>
+                    <CardDescription>Update your account password</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handlePasswordChange} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="currentPassword">Current Password</Label>
+                        <Input
+                          id="currentPassword"
+                          type="password"
+                          value={passwordForm.currentPassword}
+                          onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                          placeholder="Enter your current password"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">New Password</Label>
+                        <Input
+                          id="newPassword"
+                          type="password"
+                          value={passwordForm.newPassword}
+                          onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                          placeholder="Enter your new password"
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">Password must be at least 6 characters long</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          placeholder="Confirm your new password"
+                          required
+                        />
+                      </div>
+
+                      <Button 
+                        type="submit" 
+                        disabled={passwordLoading}
+                        className="mystery-gradient text-white"
+                      >
+                        {passwordLoading ? "Updating Password..." : "Update Password"}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                {/* Delete Account Card */}
+                <Card className="border-red-200">
+                  <CardHeader>
+                    <CardTitle className="text-red-600">Danger Zone</CardTitle>
+                    <CardDescription>Permanently delete your account and all associated data</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <h4 className="font-semibold text-red-800 mb-2">Warning: This action cannot be undone</h4>
+                        <p className="text-sm text-red-700">
+                          Deleting your account will permanently remove:
+                        </p>
+                        <ul className="text-sm text-red-700 mt-2 ml-4 list-disc">
+                          <li>Your profile and all personal information</li>
+                          <li>All mystery boxes you've created</li>
+                          <li>Your purchase and order history</li>
+                          <li>All messages and conversations</li>
+                          <li>Your addresses and preferences</li>
+                        </ul>
+                      </div>
+
+                      <Button 
+                        variant="destructive" 
+                        onClick={() => setShowDeleteDialog(true)}
+                        className="w-full"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete My Account
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Delete Account Confirmation Dialog */}
+                <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle className="text-red-600">Delete Account</DialogTitle>
+                      <DialogDescription>
+                        This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4">
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-700 font-medium">
+                          To confirm deletion, please type <span className="font-bold">DELETE</span> in the box below:
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="deleteConfirmation">Confirmation</Label>
+                        <Input
+                          id="deleteConfirmation"
+                          value={deleteConfirmation}
+                          onChange={(e) => setDeleteConfirmation(e.target.value)}
+                          placeholder="Type DELETE to confirm"
+                          className="font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <DialogFooter className="gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowDeleteDialog(false)
+                          setDeleteConfirmation("")
+                        }}
+                        disabled={deleteLoading}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleAccountDeletion}
+                        disabled={deleteLoading || deleteConfirmation !== "DELETE"}
+                      >
+                        {deleteLoading ? "Deleting Account..." : "Delete Account"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             </TabsContent>
           </Tabs>

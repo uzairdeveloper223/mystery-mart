@@ -279,13 +279,14 @@ export class FirebaseService {
         }
       }
 
-      // Remove user's reports
-      const userReportsQuery = query(ref(db, DB_PATHS.REPORTS), orderByChild("reporterId"), equalTo(uid))
-      const reportsSnapshot = await get(userReportsQuery)
-      if (reportsSnapshot.exists()) {
-        const reports = reportsSnapshot.val()
-        for (const reportId in reports) {
-          await remove(ref(db, `${DB_PATHS.REPORTS}/${reportId}`))
+      // Remove user's reports - get all reports and filter by reporterId
+      const allReportsSnapshot = await get(ref(db, DB_PATHS.REPORTS))
+      if (allReportsSnapshot.exists()) {
+        const allReports = allReportsSnapshot.val()
+        for (const [reportId, report] of Object.entries(allReports) as [string, any][]) {
+          if (report.reporterId === uid) {
+            await remove(ref(db, `${DB_PATHS.REPORTS}/${reportId}`))
+          }
         }
       }
 
@@ -1043,11 +1044,18 @@ export class FirebaseService {
 
   static subscribeToUserConversations(userId: string, callback: (conversations: any[]) => void): () => void {
     const conversationsRef = ref(db, DB_PATHS.CONVERSATIONS)
-    const conversationsQuery = query(conversationsRef, orderByChild(`participants/${userId}`), equalTo(true))
     
-    const unsubscribe = onValue(conversationsQuery, (snapshot) => {
-      const conversations = snapshot.exists() ? Object.values(snapshot.val()) : []
-      callback(conversations)
+    const unsubscribe = onValue(conversationsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const allConversations = Object.values(snapshot.val()) as any[]
+        // Filter conversations on the client side to avoid indexing issues
+        const userConversations = allConversations.filter(conv => 
+          conv.participants && conv.participants[userId] === true
+        )
+        callback(userConversations)
+      } else {
+        callback([])
+      }
     })
     
     return unsubscribe
@@ -1163,6 +1171,198 @@ export class FirebaseService {
     })
 
     return messageId
+  }
+
+  // Buy now functionality
+  static async initiatePurchase(buyerId: string, boxId: string): Promise<string> {
+    const box = await this.getBox(boxId)
+    if (!box) {
+      throw new Error("Mystery box not found")
+    }
+
+    if (box.status !== "active") {
+      throw new Error("Mystery box is not available for purchase")
+    }
+
+    if (box.quantity <= box.soldQuantity) {
+      throw new Error("Mystery box is out of stock")
+    }
+
+    const buyer = await this.getUser(buyerId)
+    const seller = await this.getUser(box.sellerId)
+
+    if (!buyer || !seller) {
+      throw new Error("User not found")
+    }
+
+    // Check if conversation already exists between buyer and seller
+    const conversationsRef = ref(db, DB_PATHS.CONVERSATIONS)
+    const conversationsSnapshot = await get(conversationsRef)
+    
+    let conversationId = null
+    
+    if (conversationsSnapshot.exists()) {
+      const conversations = Object.values(conversationsSnapshot.val()) as any[]
+      const existingConversation = conversations.find(conv => 
+        conv.participants && 
+        conv.participants[buyerId] && 
+        conv.participants[box.sellerId]
+      )
+      
+      if (existingConversation) {
+        conversationId = existingConversation.id
+      }
+    }
+
+    // Create new conversation if it doesn't exist
+    if (!conversationId) {
+      conversationId = await this.createConversation(buyerId, box.sellerId)
+    }
+
+    // Send purchase inquiry message
+    const boxUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://mystery-mart.com'}/boxes/${boxId}`
+    const messageContent = `Hi, I am ${buyer.fullName} and I want to buy "${box.title}" (${boxUrl}). Please tell me what to do next.`
+    
+    const messageId = await this.sendMessage({
+      conversationId,
+      senderId: buyerId,
+      content: messageContent,
+      type: "text",
+    })
+
+    // Track purchase inquiry
+    await this.createPurchaseInquiry({
+      boxId,
+      buyerId,
+      sellerId: box.sellerId,
+      conversationId,
+      messageId,
+      status: "pending"
+    })
+
+    // Create notification for seller with inventory management reminder
+    await this.createNotification({
+      userId: box.sellerId,
+      type: "message",
+      title: "Purchase Inquiry Received",
+      message: `${buyer.fullName} wants to buy "${box.title}". After completing the sale, remember to update your inventory in the box management section.`,
+      actionUrl: `/boxes/${boxId}/edit/order`,
+    })
+
+    return conversationId
+  }
+
+  // Purchase inquiry tracking
+  static async createPurchaseInquiry(inquiryData: {
+    boxId: string
+    buyerId: string
+    sellerId: string
+    conversationId: string
+    messageId: string
+    status: "pending" | "fulfilled" | "cancelled"
+  }): Promise<string> {
+    const inquiriesRef = ref(db, "purchaseInquiries")
+    const newInquiryRef = push(inquiriesRef)
+    const inquiryId = newInquiryRef.key!
+
+    await set(newInquiryRef, {
+      ...inquiryData,
+      id: inquiryId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+
+    return inquiryId
+  }
+
+  static async getPurchaseInquiriesForBox(boxId: string): Promise<any[]> {
+    const inquiriesQuery = query(ref(db, "purchaseInquiries"), orderByChild("boxId"), equalTo(boxId))
+    const snapshot = await get(inquiriesQuery)
+
+    if (!snapshot.exists()) return []
+    return Object.values(snapshot.val())
+  }
+
+  static async getPurchaseInquiriesForSeller(sellerId: string): Promise<any[]> {
+    const inquiriesQuery = query(ref(db, "purchaseInquiries"), orderByChild("sellerId"), equalTo(sellerId))
+    const snapshot = await get(inquiriesQuery)
+
+    if (!snapshot.exists()) return []
+    return Object.values(snapshot.val())
+  }
+
+  static async updatePurchaseInquiryStatus(inquiryId: string, status: "pending" | "fulfilled" | "cancelled"): Promise<void> {
+    const inquiryRef = ref(db, `purchaseInquiries/${inquiryId}`)
+    await update(inquiryRef, {
+      status,
+      updatedAt: new Date().toISOString(),
+    })
+  }
+
+  // Seller dashboard helpers
+  static async getSellerDashboardData(sellerId: string): Promise<{
+    pendingInquiries: any[]
+    lowStockBoxes: any[]
+    outOfStockBoxes: any[]
+    recentSales: any[]
+  }> {
+    const [inquiries, boxes] = await Promise.all([
+      this.getPurchaseInquiriesForSeller(sellerId),
+      this.getBoxes({ sellerId, status: "active" })
+    ])
+
+    const pendingInquiries = inquiries.filter(inquiry => inquiry.status === "pending")
+    const lowStockBoxes = boxes.filter(box => {
+      const remaining = (box.quantity || 0) - (box.soldQuantity || 0)
+      return remaining > 0 && remaining <= 2
+    })
+    const outOfStockBoxes = boxes.filter(box => {
+      const remaining = (box.quantity || 0) - (box.soldQuantity || 0)
+      return remaining <= 0
+    })
+
+    return {
+      pendingInquiries,
+      lowStockBoxes,
+      outOfStockBoxes,
+      recentSales: [] // We'll implement this later
+    }
+  }
+
+  // Update box quantity and status
+  static async updateBoxQuantity(boxId: string, soldQuantity: number): Promise<void> {
+    const box = await this.getBox(boxId)
+    if (!box) {
+      throw new Error("Mystery box not found")
+    }
+
+    const newSoldQuantity = box.soldQuantity + soldQuantity
+    const updates: any = {
+      soldQuantity: newSoldQuantity,
+    }
+
+    // Mark as out of stock if all items are sold
+    if (newSoldQuantity >= box.quantity) {
+      updates.status = "out_of_stock"
+    }
+
+    await this.updateBox(boxId, updates)
+  }
+
+  // Check if box is available for purchase
+  static async isBoxAvailable(boxId: string): Promise<boolean> {
+    const box = await this.getBox(boxId)
+    if (!box) return false
+    
+    return box.status === "active" && box.quantity > box.soldQuantity
+  }
+
+  // Get available quantity for a box
+  static async getAvailableQuantity(boxId: string): Promise<number> {
+    const box = await this.getBox(boxId)
+    if (!box) return 0
+    
+    return Math.max(0, box.quantity - box.soldQuantity)
   }
 
   // Notification operations

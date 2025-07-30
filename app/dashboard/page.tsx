@@ -317,7 +317,11 @@ export default function DashboardPage() {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => router.push(`/boxes/${box.id}/edit/order`)}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button

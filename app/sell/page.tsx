@@ -66,6 +66,7 @@ export default function SellPage() {
     estimatedValueMax: "",
     category: "",
     rarity: "",
+    quantity: "",
     weight: "",
     length: "",
     width: "",
@@ -325,6 +326,11 @@ export default function SellPage() {
       newErrors.rarity = "Please select a rarity level"
     }
 
+    const quantity = Number.parseInt(formData.quantity)
+    if (!formData.quantity || isNaN(quantity) || quantity < 1 || quantity > 1000) {
+      newErrors.quantity = "Quantity must be between 1-1000"
+    }
+
     if (images.length === 0) {
       newErrors.images = "Please upload at least one image"
     }
@@ -376,6 +382,8 @@ export default function SellPage() {
         updatedAt: new Date().toISOString(),
         views: 0,
         likes: 0,
+        quantity: Number.parseInt(formData.quantity),
+        soldQuantity: 0,
         isRevealed: false,
         shipping: {
           weight: Number.parseFloat(formData.weight) || 1,
@@ -645,7 +653,7 @@ export default function SellPage() {
                   <CardDescription>Set your selling price and estimated value range</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="grid md:grid-cols-3 gap-4">
+                  <div className="grid md:grid-cols-4 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="price">Selling Price ($) *</Label>
                       <Input
@@ -659,6 +667,20 @@ export default function SellPage() {
                         placeholder="99.99"
                       />
                       {errors.price && <p className="text-sm text-red-500">{errors.price}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="quantity">Quantity Available *</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        min="1"
+                        max="1000"
+                        value={formData.quantity}
+                        onChange={(e) => handleInputChange("quantity", e.target.value)}
+                        placeholder="10"
+                      />
+                      {errors.quantity && <p className="text-sm text-red-500">{errors.quantity}</p>}
                     </div>
 
                     <div className="space-y-2">

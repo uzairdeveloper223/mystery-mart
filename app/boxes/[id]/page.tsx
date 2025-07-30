@@ -125,6 +125,35 @@ export default function BoxDetailPage() {
     }
   }
 
+  const handleBuyNow = async () => {
+    if (!user) {
+      router.push("/auth/login")
+      return
+    }
+
+    if (!box) return
+
+    try {
+      // Use the initiatePurchase function from FirebaseService
+      const conversationId = await FirebaseService.initiatePurchase(user.uid, box.id)
+      
+      toast({
+        title: "Purchase Inquiry Sent",
+        description: "A message has been sent to the seller. Check your messages for further instructions.",
+      })
+
+      // Redirect to the conversation
+      router.push(`/messages?conversation=${conversationId}`)
+    } catch (error) {
+      console.error("Buy now error:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to initiate purchase",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleShare = async () => {
     if (navigator.share) {
       try {
@@ -404,7 +433,7 @@ export default function BoxDetailPage() {
                     <ShoppingCart className="h-5 w-5 mr-2" />
                     {inCart ? "In Cart" : "Add to Cart"}
                   </Button>
-                  <Button variant="outline" className="w-full bg-transparent" size="lg">
+                  <Button variant="outline" className="w-full bg-transparent" size="lg" onClick={handleBuyNow}>
                     Buy Now
                   </Button>
                 </>

@@ -225,14 +225,11 @@ export function Navbar() {
                         </DropdownMenuItem>
                       )}
                     </div>
-                    {notifications.length > 5 && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => router.push("/notifications")}>
-                          View all notifications
-                        </DropdownMenuItem>
-                      </>
-                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => router.push("/notifications")}>
+                      <Bell className="mr-2 h-4 w-4" />
+                      <span>View all notifications</span>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -396,6 +393,14 @@ export function Navbar() {
                         >
                           <MessageCircle className="h-4 w-4" />
                           <span>Messages</span>
+                        </Link>
+                        <Link
+                          href="/notifications"
+                          className="flex items-center space-x-2 text-sm font-medium mt-4"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <Bell className="h-4 w-4" />
+                          <span>Notifications {unreadCount > 0 && `(${unreadCount})`}</span>
                         </Link>
                         <Link
                           href="/settings"

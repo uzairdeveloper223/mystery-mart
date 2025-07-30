@@ -182,7 +182,11 @@ export default function CartPage() {
                     <span>${total.toFixed(2)}</span>
                   </div>
 
-                  <Button className="w-full mystery-gradient text-white" size="lg">
+                  <Button 
+                    className="w-full mystery-gradient text-white" 
+                    size="lg"
+                    onClick={() => router.push("/checkout")}
+                  >
                     Proceed to Checkout
                   </Button>
                 </CardContent>

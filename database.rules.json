@@ -18,7 +18,9 @@
       ".indexOn": ["lastMessageAt"],
       "$conversationId": {
         "participants": {
-          ".indexOn": ".key"
+          "$userId": {
+            ".indexOn": ".value"
+          }
         }
       }
     },
@@ -26,7 +28,7 @@
       ".indexOn": ["userId", "isRead", "createdAt"]
     },
     "reports": {
-      ".indexOn": ["status", "createdAt"]
+      ".indexOn": ["status", "createdAt", "reporterId"]
     },
     "seller_requests": {
       ".indexOn": ["userId", "status", "createdAt"]
