@@ -214,6 +214,118 @@ export class FirebaseService {
     })
   }
 
+  static async deleteUserData(uid: string): Promise<void> {
+    try {
+      // Get user data first to get username for cleanup
+      const user = await this.getUser(uid)
+      
+      // Remove user from users collection
+      const userRef = ref(db, `${DB_PATHS.USERS}/${uid}`)
+      await remove(userRef)
+
+      // Remove username reservation if exists
+      if (user?.username) {
+        const usernameRef = ref(db, `${DB_PATHS.USERNAMES}/${user.username}`)
+        await remove(usernameRef)
+      }
+
+      // Remove user's boxes
+      const userBoxesQuery = query(ref(db, DB_PATHS.BOXES), orderByChild("sellerId"), equalTo(uid))
+      const boxesSnapshot = await get(userBoxesQuery)
+      if (boxesSnapshot.exists()) {
+        const boxes = boxesSnapshot.val()
+        for (const boxId in boxes) {
+          await remove(ref(db, `${DB_PATHS.BOXES}/${boxId}`))
+        }
+      }
+
+      // Remove user's orders (as buyer)
+      const userOrdersQuery = query(ref(db, DB_PATHS.ORDERS), orderByChild("buyerId"), equalTo(uid))
+      const ordersSnapshot = await get(userOrdersQuery)
+      if (ordersSnapshot.exists()) {
+        const orders = ordersSnapshot.val()
+        for (const orderId in orders) {
+          await remove(ref(db, `${DB_PATHS.ORDERS}/${orderId}`))
+        }
+      }
+
+      // Remove user's addresses
+      const userAddressesQuery = query(ref(db, DB_PATHS.ADDRESSES), orderByChild("userId"), equalTo(uid))
+      const addressesSnapshot = await get(userAddressesQuery)
+      if (addressesSnapshot.exists()) {
+        const addresses = addressesSnapshot.val()
+        for (const addressId in addresses) {
+          await remove(ref(db, `${DB_PATHS.ADDRESSES}/${addressId}`))
+        }
+      }
+
+      // Remove user's messages and conversations
+      const userMessagesQuery = query(ref(db, DB_PATHS.MESSAGES), orderByChild("senderId"), equalTo(uid))
+      const messagesSnapshot = await get(userMessagesQuery)
+      if (messagesSnapshot.exists()) {
+        const messages = messagesSnapshot.val()
+        for (const messageId in messages) {
+          await remove(ref(db, `${DB_PATHS.MESSAGES}/${messageId}`))
+        }
+      }
+
+      // Remove user's notifications
+      const userNotificationsQuery = query(ref(db, DB_PATHS.NOTIFICATIONS), orderByChild("userId"), equalTo(uid))
+      const notificationsSnapshot = await get(userNotificationsQuery)
+      if (notificationsSnapshot.exists()) {
+        const notifications = notificationsSnapshot.val()
+        for (const notificationId in notifications) {
+          await remove(ref(db, `${DB_PATHS.NOTIFICATIONS}/${notificationId}`))
+        }
+      }
+
+      // Remove user's reports
+      const userReportsQuery = query(ref(db, DB_PATHS.REPORTS), orderByChild("reporterId"), equalTo(uid))
+      const reportsSnapshot = await get(userReportsQuery)
+      if (reportsSnapshot.exists()) {
+        const reports = reportsSnapshot.val()
+        for (const reportId in reports) {
+          await remove(ref(db, `${DB_PATHS.REPORTS}/${reportId}`))
+        }
+      }
+
+      // Remove user's verification requests
+      const verificationQuery = query(ref(db, DB_PATHS.VERIFICATION_REQUESTS), orderByChild("userId"), equalTo(uid))
+      const verificationSnapshot = await get(verificationQuery)
+      if (verificationSnapshot.exists()) {
+        const requests = verificationSnapshot.val()
+        for (const requestId in requests) {
+          await remove(ref(db, `${DB_PATHS.VERIFICATION_REQUESTS}/${requestId}`))
+        }
+      }
+
+      // Remove from followers/following
+      const followersRef = ref(db, `${DB_PATHS.FOLLOWERS}/${uid}`)
+      const followingRef = ref(db, `${DB_PATHS.FOLLOWING}/${uid}`)
+      await remove(followersRef)
+      await remove(followingRef)
+
+      // Remove user from other users' followers/following lists
+      const allUsersSnapshot = await get(ref(db, DB_PATHS.USERS))
+      if (allUsersSnapshot.exists()) {
+        const allUsers = allUsersSnapshot.val()
+        for (const userId in allUsers) {
+          // Remove from their followers list
+          const userFollowersRef = ref(db, `${DB_PATHS.FOLLOWERS}/${userId}/${uid}`)
+          await remove(userFollowersRef)
+          
+          // Remove from their following list
+          const userFollowingRef = ref(db, `${DB_PATHS.FOLLOWING}/${userId}/${uid}`)
+          await remove(userFollowingRef)
+        }
+      }
+
+    } catch (error) {
+      console.error("Error deleting user data:", error)
+      throw error
+    }
+  }
+
   static async checkUsernameAvailability(username: string): Promise<boolean> {
     const usernameRef = ref(db, `${DB_PATHS.USERNAMES}/${username}`)
     const snapshot = await get(usernameRef)

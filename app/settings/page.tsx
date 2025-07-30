@@ -554,7 +554,10 @@ export default function SettingsPage() {
 
     setSecurityLoading(true)
     try {
-      // Delete the Firebase Auth user (this will cascade delete related data)
+      // Delete user data from Firestore first
+      await FirebaseService.deleteUserData(user.uid)
+
+      // Delete the Firebase Auth user
       await deleteUser(auth.currentUser)
 
       toast({
