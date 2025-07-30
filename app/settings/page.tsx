@@ -453,6 +453,7 @@ export default function SettingsPage() {
 
   // Password change functions
   const openPasswordDialog = () => {
+    console.log("Opening password dialog...")
     setPasswordForm({
       currentPassword: "",
       newPassword: "",
@@ -531,6 +532,7 @@ export default function SettingsPage() {
 
   // Account deletion functions
   const openDeleteDialog = () => {
+    console.log("Opening delete dialog...")
     setDeleteConfirmation("")
     setShowDeleteDialog(true)
   }
@@ -1360,7 +1362,10 @@ export default function SettingsPage() {
                         <h3 className="font-semibold">Password</h3>
                         <p className="text-sm text-muted-foreground">Keep your account secure with a strong password</p>
                       </div>
-                      <Button variant="outline" onClick={openPasswordDialog}>
+                      <Button variant="outline" onClick={() => {
+                        console.log("Change Password button clicked")
+                        openPasswordDialog()
+                      }}>
                         Change Password
                       </Button>
                     </div>
