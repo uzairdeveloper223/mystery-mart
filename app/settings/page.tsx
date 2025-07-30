@@ -470,8 +470,6 @@ export default function SettingsPage() {
     })
   }
 
-
-
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user || !auth.currentUser) return
@@ -496,7 +494,6 @@ export default function SettingsPage() {
 
     setSecurityLoading(true)
     try {
-      // Re-authenticate user before changing password
       const credential = EmailAuthProvider.credential(user.email, passwordForm.currentPassword)
       await reauthenticateWithCredential(auth.currentUser, credential)
 
