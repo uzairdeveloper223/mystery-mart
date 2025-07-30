@@ -27,9 +27,16 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const { register } = useAuth()
+  const { register, user, loading: authLoading } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.push("/dashboard")
+    }
+  }, [user, authLoading, router])
 
   // Password validation
   const isValidPassword = (password: string) => {
@@ -63,10 +70,14 @@ export default function RegisterPage() {
       
       await register(formData.email, formData.password, tempUsername, formData.fullName)
       toast({
-        title: "Account created!",
-        description: "Welcome to Mystery Mart! Please set your username in the dashboard.",
+        title: "Welcome to Mystery Mart!",
+        description: "Your account has been created and you're now logged in. Set your username in the dashboard.",
       })
-      router.push("/dashboard")
+      
+      // Small delay to ensure auth state is updated before redirect
+      setTimeout(() => {
+        router.push("/dashboard")
+      }, 100)
     } catch (error: any) {
       setError(error.message || "Failed to create account")
     } finally {
@@ -76,6 +87,20 @@ export default function RegisterPage() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  // Show loading while checking auth state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  // Don't render if user is authenticated (will redirect)
+  if (user) {
+    return null
   }
 
   return (

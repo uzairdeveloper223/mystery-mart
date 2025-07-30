@@ -26,6 +26,8 @@ interface AuthContextType {
   checkUsernameAvailability: (username: string) => Promise<boolean>
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>
   refreshUser: () => Promise<void>
+  updateUsername: (newUsername: string) => Promise<boolean>
+  hasTemporaryUsername: () => boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -80,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             await FirebaseService.createUser(firebaseUser.uid, newProfile)
+            await FirebaseService.reserveUsername(tempUsername, firebaseUser.uid)
             const createdProfile = await FirebaseService.getUser(firebaseUser.uid)
             setUser(createdProfile)
           }
@@ -139,6 +142,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     await FirebaseService.createUser(firebaseUser.uid, userProfile)
     await FirebaseService.reserveUsername(username, firebaseUser.uid)
+    
+    // Fetch the created user profile and set it in state to auto-login
+    const createdProfile = await FirebaseService.getUser(firebaseUser.uid)
+    if (createdProfile) {
+      setUser(createdProfile)
+    }
   }
 
   const logout = async () => {
@@ -176,14 +185,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return false
 
     try {
-      // Check if username is available
-      const isAvailable = await FirebaseService.checkUsernameAvailability(newUsername)
-      if (!isAvailable) {
-        throw new Error("Username is already taken")
-      }
-
-      // Update user profile with new username
-      await FirebaseService.updateUser(user.uid, { username: newUsername })
+      // Use the new updateUsername method that handles both profile and usernames collection
+      await FirebaseService.updateUsername(user.uid, user.username, newUsername)
       
       // Refresh user data to get updated info
       await refreshUser()

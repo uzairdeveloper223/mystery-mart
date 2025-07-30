@@ -337,6 +337,26 @@ export class FirebaseService {
     await set(usernameRef, uid)
   }
 
+  static async updateUsername(uid: string, oldUsername: string, newUsername: string): Promise<void> {
+    // Check if new username is available
+    const isAvailable = await this.checkUsernameAvailability(newUsername)
+    if (!isAvailable) {
+      throw new Error("Username is already taken")
+    }
+
+    // Remove old username from usernames collection
+    if (oldUsername) {
+      const oldUsernameRef = ref(db, `${DB_PATHS.USERNAMES}/${oldUsername}`)
+      await remove(oldUsernameRef)
+    }
+
+    // Reserve new username
+    await this.reserveUsername(newUsername, uid)
+
+    // Update user profile with new username
+    await this.updateUser(uid, { username: newUsername })
+  }
+
   // Box moderation
   static async getAllBoxes(status?: string): Promise<MysteryBox[]> {
     let boxesQuery = query(ref(db, DB_PATHS.BOXES))

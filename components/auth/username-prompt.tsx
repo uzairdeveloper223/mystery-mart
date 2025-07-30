@@ -47,12 +47,12 @@ export function UsernamePrompt() {
       if (success) {
         toast({
           title: "Username Updated",
-          description: "Your username has been successfully updated!",
+          description: "Your username has been successfully updated and is now available on your profile!",
         })
         setShowPrompt(false)
       } else {
         toast({
-          title: "Update Failed",
+          title: "Update Failed", 
           description: "Username is already taken or update failed. Please try a different username.",
           variant: "destructive",
         })
@@ -79,7 +79,7 @@ export function UsernamePrompt() {
           <CardDescription className="text-blue-700">
             You're currently using a temporary username: <code className="bg-blue-100 px-1 rounded">{user.username}</code>
             <br />
-            Choose a permanent username for your profile.
+            Choose a permanent username for your profile. This will update your seller page URL.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
