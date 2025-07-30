@@ -20,25 +20,16 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    username: "",
     fullName: "",
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
-  const [checkingUsername, setCheckingUsername] = useState(false)
 
-  const { register, checkUsernameAvailability } = useAuth()
+  const { register } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
-
-  // Username validation
-  const isValidUsername = (username: string) => {
-    const regex = /^[a-z0-9_.]{3,16}$/
-    return regex.test(username)
-  }
 
   // Password validation
   const isValidPassword = (password: string) => {
@@ -46,40 +37,12 @@ export default function RegisterPage() {
     return regex.test(password)
   }
 
-  // Check username availability with debounce
-  useEffect(() => {
-    const checkUsername = async () => {
-      if (formData.username && isValidUsername(formData.username)) {
-        setCheckingUsername(true)
-        try {
-          const available = await checkUsernameAvailability(formData.username)
-          setUsernameAvailable(available)
-        } catch (error) {
-          setUsernameAvailable(null)
-        } finally {
-          setCheckingUsername(false)
-        }
-      } else {
-        setUsernameAvailable(null)
-      }
-    }
-
-    const timeoutId = setTimeout(checkUsername, 500)
-    return () => clearTimeout(timeoutId)
-  }, [formData.username, checkUsernameAvailability])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
 
     // Validation
-    if (!isValidUsername(formData.username)) {
-      setError("Username must be 3-16 characters and contain only lowercase letters, numbers, underscores, and periods")
-      setLoading(false)
-      return
-    }
-
     if (!isValidPassword(formData.password)) {
       setError("Password must be at least 8 characters with uppercase, lowercase, and numbers")
       setLoading(false)
@@ -92,17 +55,16 @@ export default function RegisterPage() {
       return
     }
 
-    if (!usernameAvailable) {
-      setError("Username is not available")
-      setLoading(false)
-      return
-    }
-
     try {
-      await register(formData.email, formData.password, formData.username, formData.fullName)
+      // Generate temporary username from email
+      const baseUsername = formData.email.split("@")[0]
+      const timestamp = Date.now().toString().slice(-6)
+      const tempUsername = `${baseUsername}_${timestamp}`
+      
+      await register(formData.email, formData.password, tempUsername, formData.fullName)
       toast({
         title: "Account created!",
-        description: "Welcome to Mystery Mart! You can now start buying and selling mystery boxes.",
+        description: "Welcome to Mystery Mart! Please set your username in the dashboard.",
       })
       router.push("/dashboard")
     } catch (error: any) {
@@ -158,44 +120,7 @@ export default function RegisterPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <div className="relative">
-                <Input
-                  id="username"
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) => handleInputChange("username", e.target.value.toLowerCase())}
-                  placeholder="Choose a username"
-                  className={cn(
-                    formData.username && !isValidUsername(formData.username) && "border-red-500",
-                    formData.username &&
-                      isValidUsername(formData.username) &&
-                      usernameAvailable === true &&
-                      "border-green-500",
-                    formData.username &&
-                      isValidUsername(formData.username) &&
-                      usernameAvailable === false &&
-                      "border-red-500",
-                  )}
-                  required
-                />
-                {formData.username && isValidUsername(formData.username) && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    {checkingUsername ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-primary" />
-                    ) : usernameAvailable === true ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : usernameAvailable === false ? (
-                      <X className="h-4 w-4 text-red-500" />
-                    ) : null}
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                3-16 characters, lowercase letters, numbers, underscores, and periods only
-              </p>
-            </div>
+
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -264,10 +189,8 @@ export default function RegisterPage() {
                 loading ||
                 !formData.email ||
                 !formData.fullName ||
-                !formData.username ||
                 !formData.password ||
                 !formData.confirmPassword ||
-                !usernameAvailable ||
                 !isValidPassword(formData.password) ||
                 formData.password !== formData.confirmPassword
               }

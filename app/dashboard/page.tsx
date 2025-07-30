@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { UsernamePrompt } from "@/components/auth/username-prompt"
 import { FirebaseService } from "@/lib/firebase-service"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -160,6 +161,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <UsernamePrompt />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
