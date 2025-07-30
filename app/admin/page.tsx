@@ -1181,11 +1181,11 @@ export default function AdminPage() {
 
                           {/* Role Management */}
                           <Select onValueChange={(role: any) => handleUserRoleChange(user.uid, role)}>
-                            <SelectTrigger asChild>
-                              <Button size="sm" variant="outline" disabled={actionLoading === user.uid}>
+                            <SelectTrigger className="w-auto h-auto p-2" disabled={actionLoading === user.uid}>
+                              <div className="flex items-center">
                                 <Settings className="h-4 w-4 mr-1" />
-                                Role
-                              </Button>
+                                <span className="text-sm">Role</span>
+                              </div>
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="user">Regular User</SelectItem>
@@ -1388,14 +1388,13 @@ export default function AdminPage() {
                             )}
                           </Button>
                           <Select onValueChange={(action) => handleReportAction(report.id, action as any)}>
-                            <SelectTrigger asChild>
-                              <Button 
-                                size="sm" 
-                                variant="destructive"
-                                disabled={reportActions[report.id]?.actionTaken}
-                              >
+                            <SelectTrigger 
+                              className="w-auto h-auto p-2 border-red-200 bg-red-50 text-red-600 hover:bg-red-100" 
+                              disabled={reportActions[report.id]?.actionTaken}
+                            >
+                              <span className="text-sm">
                                 {reportActions[report.id]?.actionTaken ? "Action Taken" : "Take Action"}
-                              </Button>
+                              </span>
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="dismiss">Dismiss Report</SelectItem>
