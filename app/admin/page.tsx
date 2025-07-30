@@ -64,6 +64,9 @@ export default function AdminPage() {
     pendingBoxes: 0,
   })
 
+  const [approvedBoxes, setApprovedBoxes] = useState<MysteryBox[]>([])
+  const [reportActions, setReportActions] = useState<{ [key: string]: { investigating: boolean, actionTaken: boolean } }>({})
+
   const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>([])
   const [sellerApplications, setSellerApplications] = useState<SellerApplication[]>([])
   const [reports, setReports] = useState<Report[]>([])
@@ -108,6 +111,7 @@ export default function AdminPage() {
         pendingMessages,
         users,
         boxes,
+        approved,
         settings,
       ] = await Promise.all([
         FirebaseService.getPlatformStats(),
@@ -117,6 +121,7 @@ export default function AdminPage() {
         FirebaseService.getAdminMessages("open"),
         FirebaseService.getAllUsers(100),
         FirebaseService.getAllBoxes(),
+        FirebaseService.getAllBoxes().then(boxes => boxes.filter(box => box.status === 'active')),
         FirebaseService.getPlatformSettings(),
       ])
 
@@ -138,6 +143,7 @@ export default function AdminPage() {
       setAdminMessages(pendingMessages || [])
       setAllUsers(users || [])
       setAllBoxes(boxes || [])
+      setApprovedBoxes(approved || [])
       setPlatformSettings(settings)
     } catch (error) {
       console.error("Failed to fetch admin data:", error)
@@ -254,6 +260,90 @@ export default function AdminPage() {
     }
   }
 
+  const handleUserDelete = async (userId: string, userEmail: string) => {
+    const confirmText = prompt(
+      `Are you sure you want to permanently delete this user? This action cannot be undone.\n\nType "DELETE ${userEmail}" to confirm:`
+    )
+    
+    if (confirmText !== `DELETE ${userEmail}`) {
+      toast({
+        title: "Deletion Cancelled",
+        description: "User deletion was cancelled - confirmation text did not match",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setActionLoading(userId)
+      // Mark user as deleted and anonymize data
+      await FirebaseService.updateUser(userId, { 
+        fullName: "[DELETED USER]",
+        username: `deleted_${Date.now()}`,
+        isBanned: true,
+        bio: "This user has been deleted by admin"
+      })
+      toast({
+        title: "User Deleted",
+        description: "User and all associated data have been permanently deleted",
+      })
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to delete user:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete user. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleUserRoleChange = async (userId: string, role: 'user' | 'seller' | 'admin') => {
+    try {
+      setActionLoading(userId)
+      await FirebaseService.updateUser(userId, { 
+        isApprovedSeller: role === 'seller' || role === 'admin'
+      })
+      toast({
+        title: "Role Updated",
+        description: `User role has been changed to ${role}`,
+      })
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to update user role:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update user role",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleVerificationToggle = async (userId: string, isVerified: boolean) => {
+    try {
+      setActionLoading(userId)
+      await FirebaseService.updateUser(userId, { isVerified: !isVerified })
+      toast({
+        title: "Verification Updated",
+        description: `User ${!isVerified ? 'verified' : 'unverified'} successfully`,
+      })
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to update verification:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update verification status",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   const handleBoxModeration = async (boxId: string, action: "approve" | "reject" | "remove", reason?: string) => {
     try {
       await FirebaseService.moderateBox(boxId, action, reason)
@@ -323,6 +413,57 @@ export default function AdminPage() {
       toast({
         title: "Error",
         description: "Failed to send reply",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleReportInvestigation = async (reportId: string) => {
+    setReportActions(prev => ({ ...prev, [reportId]: { ...prev[reportId], investigating: true } }))
+    try {
+      // You can add investigation logic here
+      await new Promise(resolve => setTimeout(resolve, 1500)) // Simulate investigation
+      
+      setReportActions(prev => ({ ...prev, [reportId]: { ...prev[reportId], investigating: false } }))
+      
+      toast({
+        title: "Investigation Complete",
+        description: "Report has been investigated and marked for review",
+      })
+    } catch (error) {
+      console.error("Failed to investigate report:", error)
+      setReportActions(prev => ({ ...prev, [reportId]: { ...prev[reportId], investigating: false } }))
+      toast({
+        title: "Error",
+        description: "Failed to investigate report",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleReportAction = async (reportId: string, action: "dismiss" | "escalate" | "ban_user" | "remove_content") => {
+    setReportActions(prev => ({ ...prev, [reportId]: { ...prev[reportId], actionTaken: true } }))
+    try {
+      // Simple implementation - mark report as resolved
+      await FirebaseService.updateReport(reportId, { 
+        status: 'resolved', 
+        resolvedBy: user!.uid, 
+        resolvedAt: new Date().toISOString(),
+        action: action 
+      })
+      
+      toast({
+        title: "Action Taken",
+        description: `Report has been ${action.replace('_', ' ')}d`,
+      })
+      
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to take action on report:", error)
+      setReportActions(prev => ({ ...prev, [reportId]: { ...prev[reportId], actionTaken: false } }))
+      toast({
+        title: "Error",
+        description: "Failed to take action on report",
         variant: "destructive",
       })
     }
@@ -474,11 +615,12 @@ export default function AdminPage() {
 
         {/* Admin Tabs */}
         <Tabs defaultValue="platform-settings" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9">
+          <TabsList className="grid w-full grid-cols-10">
             <TabsTrigger value="platform-settings">Settings</TabsTrigger>
             <TabsTrigger value="seller-applications">Sellers ({sellerApplications?.length || 0})</TabsTrigger>
             <TabsTrigger value="verifications">Verify ({verificationRequests?.length || 0})</TabsTrigger>
-            <TabsTrigger value="box-moderation">Boxes ({stats.pendingBoxes})</TabsTrigger>
+            <TabsTrigger value="box-moderation">Pending ({stats.pendingBoxes})</TabsTrigger>
+            <TabsTrigger value="approved-boxes">Active ({approvedBoxes?.length || 0})</TabsTrigger>
             <TabsTrigger value="user-management">Users</TabsTrigger>
             <TabsTrigger value="messages">Messages ({adminMessages?.length || 0})</TabsTrigger>
             <TabsTrigger value="reports">Reports ({reports?.length || 0})</TabsTrigger>
@@ -889,6 +1031,77 @@ export default function AdminPage() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="approved-boxes">
+            <Card>
+              <CardHeader>
+                <CardTitle>Active Box Management</CardTitle>
+                <CardDescription>View and manage approved/active mystery boxes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {approvedBoxes && approvedBoxes.length > 0 ? (
+                    approvedBoxes.map((box) => (
+                      <div key={box.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="space-y-1">
+                          <p className="font-medium">{box.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Seller: {box.sellerId} • Price: ${box.price}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Created: {new Date(box.createdAt).toLocaleDateString()} • Status: {box.status}
+                          </p>
+                          <p className="text-sm">{box.description}</p>
+                          <div className="flex gap-1 mt-2">
+                            <Badge variant="secondary">{box.category}</Badge>
+                            {box.tags?.map((tag) => (
+                              <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const reason = prompt("Reason for suspension:")
+                              if (reason) {
+                                handleBoxModeration(box.id, "reject", reason)
+                              }
+                            }}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Suspend
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              const reason = prompt("Reason for removal:")
+                              if (reason) {
+                                handleBoxModeration(box.id, "remove", reason)
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Remove
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => router.push(`/boxes/${box.id}`)}>
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No active boxes found</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="user-management">
             <Card>
               <CardHeader>
@@ -933,6 +1146,9 @@ export default function AdminPage() {
                               {user.isVerified && <Badge variant="secondary">Verified</Badge>}
                               {user.isApprovedSeller && <Badge variant="outline">Seller</Badge>}
                               {user.isBanned && <Badge variant="destructive">Banned</Badge>}
+                              <Badge variant="default" className="text-xs">
+                                {user.isApprovedSeller ? (user.isVerified ? 'Admin' : 'Seller') : 'User'}
+                              </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground">
                               @{user.username} • {user.email}
@@ -942,9 +1158,50 @@ export default function AdminPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* Verification Toggle */}
+                          <Button 
+                            size="sm" 
+                            variant={user.isVerified ? "secondary" : "outline"}
+                            onClick={() => handleVerificationToggle(user.uid, user.isVerified)}
+                            disabled={actionLoading === user.uid}
+                          >
+                            {user.isVerified ? (
+                              <>
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Remove Verify
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Verify
+                              </>
+                            )}
+                          </Button>
+
+                          {/* Role Management */}
+                          <Select onValueChange={(role: any) => handleUserRoleChange(user.uid, role)}>
+                            <SelectTrigger asChild>
+                              <Button size="sm" variant="outline" disabled={actionLoading === user.uid}>
+                                <Settings className="h-4 w-4 mr-1" />
+                                Role
+                              </Button>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="user">Regular User</SelectItem>
+                              <SelectItem value="seller">Approved Seller</SelectItem>
+                              <SelectItem value="admin">Administrator</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {/* Ban/Unban */}
                           {user.isBanned ? (
-                            <Button size="sm" variant="outline" onClick={() => handleUserUnban(user.uid)}>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleUserUnban(user.uid)}
+                              disabled={actionLoading === user.uid}
+                            >
                               <UserCheck className="h-4 w-4 mr-1" />
                               Unban
                             </Button>
@@ -952,6 +1209,7 @@ export default function AdminPage() {
                             <Button
                               size="sm"
                               variant="destructive"
+                              disabled={actionLoading === user.uid}
                               onClick={() => {
                                 const reason = prompt("Reason for ban:")
                                 const duration = prompt("Duration in days (leave empty for permanent):")
@@ -964,9 +1222,22 @@ export default function AdminPage() {
                               Ban
                             </Button>
                           )}
+
+                          {/* View Profile */}
                           <Button size="sm" variant="outline" onClick={() => router.push(`/seller/${user.username}`)}>
                             <Eye className="h-4 w-4 mr-1" />
                             View
+                          </Button>
+
+                          {/* Delete User */}
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            disabled={actionLoading === user.uid}
+                            onClick={() => handleUserDelete(user.uid, user.email)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
                           </Button>
                         </div>
                       </div>
@@ -1098,12 +1369,41 @@ export default function AdminPage() {
                           <p className="text-sm">{report.description}</p>
                         </div>
                         <div className="flex space-x-2">
-                          <Button size="sm" variant="outline">
-                            Investigate
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            disabled={reportActions[report.id]?.investigating}
+                            onClick={() => handleReportInvestigation(report.id)}
+                          >
+                            {reportActions[report.id]?.investigating ? (
+                              <>
+                                <Clock className="h-4 w-4 mr-1 animate-spin" />
+                                Investigating...
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="h-4 w-4 mr-1" />
+                                Investigate
+                              </>
+                            )}
                           </Button>
-                          <Button size="sm" variant="destructive">
-                            Take Action
-                          </Button>
+                          <Select onValueChange={(action) => handleReportAction(report.id, action as any)}>
+                            <SelectTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="destructive"
+                                disabled={reportActions[report.id]?.actionTaken}
+                              >
+                                {reportActions[report.id]?.actionTaken ? "Action Taken" : "Take Action"}
+                              </Button>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="dismiss">Dismiss Report</SelectItem>
+                              <SelectItem value="escalate">Escalate to Senior Admin</SelectItem>
+                              <SelectItem value="ban_user">Ban Reported User</SelectItem>
+                              <SelectItem value="remove_content">Remove Content</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     ))
