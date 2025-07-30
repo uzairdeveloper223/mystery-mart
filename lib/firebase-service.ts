@@ -85,7 +85,7 @@ export class FirebaseService {
         maxDailyMessages: 100,
         maxDailyBoxCreations: 10,
         bannedWords: ["spam", "scam", "fake"],
-        supportEmail: "support@mysterymart.com",
+        supportEmail: "uzairxdev223@gmail.com",
         lastUpdated: new Date().toISOString(),
       }
 

@@ -354,13 +354,13 @@ export default function TermsOfServicePage() {
 
                 <div className="space-y-2 text-sm">
                   <p>
-                    <strong>Email:</strong> legal@mysterymart.com
+                    <strong>Email:</strong> uzairxdev223@gmail.com
                   </p>
                   <p>
-                    <strong>Support:</strong> support@mysterymart.com
+                    <strong>Support:</strong> uzairxdev223@gmail.com
                   </p>
                   <p>
-                    <strong>Address:</strong> Mystery Mart Legal Team, 123 Commerce St, Tech City, TC 12345
+                    <strong>Address:</strong> Mirpur , AJK
                   </p>
                 </div>
               </CardContent>

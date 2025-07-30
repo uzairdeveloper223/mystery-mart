@@ -17,8 +17,8 @@ export const metadata: Metadata = {
     "Discover amazing mystery boxes filled with surprises. Buy, sell, and trade mystery boxes with our community.",
   keywords: "mystery boxes, surprise boxes, collectibles, trading, marketplace",
   authors: [{ name: "Uzair Developer" }],
-  creator: "Mystery Mart",
-  publisher: "Mystery Mart",
+  creator: "Uzair Dev",
+  publisher: "Uzair",
   robots: "index, follow",
   icons: {
     icon: [

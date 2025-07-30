@@ -73,12 +73,12 @@ export function MaintenanceCheck({ children }: MaintenanceCheckProps) {
               <p className="text-sm text-muted-foreground">Follow us for updates:</p>
               <div className="flex justify-center space-x-4">
                 <Button variant="outline" size="sm" asChild>
-                  <a href="https://twitter.com/mysterymart" target="_blank" rel="noopener noreferrer">
+                  <a href="https://twitter.com/mughal_x22" target="_blank" rel="noopener noreferrer">
                     Twitter
                   </a>
                 </Button>
                 <Button variant="outline" size="sm" asChild>
-                  <a href="mailto:support@mysterymart.com">Contact Support</a>
+                  <a href="mailto:uzairxdev223@gmail.com">Contact Support</a>
                 </Button>
               </div>
             </div>

@@ -293,13 +293,13 @@ export default function PrivacyPolicyPage() {
 
                 <div className="space-y-2 text-sm">
                   <p>
-                    <strong>Email:</strong> privacy@mysterymart.com
+                    <strong>Email:</strong> uzairxdev223@gmail.com
                   </p>
                   <p>
-                    <strong>Support:</strong> support@mysterymart.com
+                    <strong>Support:</strong> uzairxdev223@gmailc.om
                   </p>
                   <p>
-                    <strong>Address:</strong> Mystery Mart Privacy Team, 123 Commerce St, Tech City, TC 12345
+                    <strong>Address:</strong> Mirpur, AJK
                   </p>
                 </div>
               </CardContent>
