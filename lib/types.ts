@@ -13,6 +13,7 @@ export interface UserProfile {
   banExpiresAt?: string
   sellerApplicationStatus: "none" | "pending" | "approved" | "rejected"
   verificationStatus: "none" | "pending" | "approved" | "rejected"
+  userType: "buyer" | "seller" | "both"
   createdAt: string
   updatedAt: string
   loyaltyTier: "bronze" | "silver" | "gold" | "platinum" | "diamond"
@@ -110,16 +111,22 @@ export interface Order {
   boxId: string
   buyerId: string
   sellerId: string
+  quantity: number
   status: "pending" | "paid" | "processing" | "shipped" | "delivered" | "cancelled" | "disputed"
-  paymentMethod: "card" | "paypal" | "crypto"
+  paymentMethod: "crypto" | "cod"
   paymentDetails: {
     amount: number
     currency: string
-    transactionId: string
+    transactionId?: string
     cryptoDetails?: {
       cryptocurrency: string
       walletAddress: string
-      transactionHash: string
+      buyerAddress: string
+      transactionHash?: string
+    }
+    codDetails?: {
+      buyerPhone: string
+      estimatedDelivery: string
     }
   }
   shippingAddress: Address
@@ -283,6 +290,9 @@ export interface Report {
   createdAt: string
   updatedAt: string
   adminNotes?: string
+  resolvedBy?: string
+  resolvedAt?: string
+  action?: "dismiss" | "escalate" | "ban_user" | "remove_content"
 }
 
 export interface Comment {

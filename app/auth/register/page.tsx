@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Package, Eye, EyeOff, Check, X } from "lucide-react"
+import { Package, Eye, EyeOff, Check, X, ShoppingCart, Store, Users } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -21,6 +21,7 @@ export default function RegisterPage() {
     password: "",
     confirmPassword: "",
     fullName: "",
+    userType: "buyer" as "buyer" | "seller" | "both",
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -68,7 +69,7 @@ export default function RegisterPage() {
       const timestamp = Date.now().toString().slice(-6)
       const tempUsername = `${baseUsername}_${timestamp}`
       
-      await register(formData.email, formData.password, tempUsername, formData.fullName)
+      await register(formData.email, formData.password, tempUsername, formData.fullName, formData.userType)
       toast({
         title: "Welcome to Mystery Mart!",
         description: "Your account has been created and you're now logged in. Set your username in the dashboard.",
@@ -131,6 +132,53 @@ export default function RegisterPage() {
                 placeholder="Enter your full name"
                 required
               />
+            </div>
+
+            <div className="space-y-3">
+              <Label>Account Type</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div
+                  className={cn(
+                    "border-2 rounded-lg p-3 cursor-pointer transition-all hover:border-primary/50",
+                    formData.userType === "buyer" ? "border-primary bg-primary/5" : "border-muted"
+                  )}
+                  onClick={() => handleInputChange("userType", "buyer")}
+                >
+                  <div className="flex flex-col items-center space-y-2">
+                    <ShoppingCart className="h-6 w-6" />
+                    <span className="text-sm font-medium">Buyer</span>
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    "border-2 rounded-lg p-3 cursor-pointer transition-all hover:border-primary/50",
+                    formData.userType === "seller" ? "border-primary bg-primary/5" : "border-muted"
+                  )}
+                  onClick={() => handleInputChange("userType", "seller")}
+                >
+                  <div className="flex flex-col items-center space-y-2">
+                    <Store className="h-6 w-6" />
+                    <span className="text-sm font-medium">Seller</span>
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    "border-2 rounded-lg p-3 cursor-pointer transition-all hover:border-primary/50",
+                    formData.userType === "both" ? "border-primary bg-primary/5" : "border-muted"
+                  )}
+                  onClick={() => handleInputChange("userType", "both")}
+                >
+                  <div className="flex flex-col items-center space-y-2">
+                    <Users className="h-6 w-6" />
+                    <span className="text-sm font-medium">Both</span>
+                  </div>
+                </div>
+              </div>
+              {(formData.userType === "seller" || formData.userType === "both") && (
+                <p className="text-xs text-muted-foreground">
+                  Seller accounts require admin approval before you can start selling
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">

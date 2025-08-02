@@ -55,25 +55,17 @@ export function MysteryBoxCard({ box }: MysteryBoxCardProps) {
       return
     }
 
-    try {
-      // Use the initiatePurchase function from FirebaseService
-      const conversationId = await FirebaseService.initiatePurchase(user.uid, box.id)
-      
-      toast({
-        title: "Purchase Inquiry Sent",
-        description: "A message has been sent to the seller. Check your messages for further instructions.",
-      })
-
-      // Redirect to the conversation
-      router.push(`/messages?conversation=${conversationId}`)
-    } catch (error) {
-      console.error("Buy now error:", error)
+    if (user.uid === box.sellerId) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to initiate purchase",
+        description: "You cannot purchase your own mystery box",
         variant: "destructive",
       })
+      return
     }
+
+    // Redirect to checkout page
+    router.push(`/checkout/${box.id}`)
   }
 
   return (

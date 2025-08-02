@@ -18,8 +18,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { FirebaseService } from "@/lib/firebase-service"
 import { useToast } from "@/hooks/use-toast"
-import { Upload, X, Plus, Package, AlertCircle, Clock, MessageCircle } from "lucide-react"
+import { Upload, X, Plus, Package, AlertCircle, Clock, MessageCircle, Bitcoin, CreditCard } from "lucide-react"
 import type { MysteryBox } from "@/lib/types"
+import { CRYPTOCURRENCIES } from "@/lib/countries"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Separator } from "@/components/ui/separator"
 import Link from "next/link"
 
 const categories = [
@@ -74,6 +77,9 @@ export default function SellPage() {
     freeShipping: false,
     shippingCost: "",
     processingTime: "1-3 business days",
+    acceptsCrypto: false,
+    acceptsCOD: true,
+    cryptoAddresses: {} as Record<string, string>,
   })
   const [images, setImages] = useState<string[]>([])
   const [tags, setTags] = useState<string[]>([])
@@ -339,6 +345,14 @@ export default function SellPage() {
       newErrors.shippingCost = "Please enter a valid shipping cost"
     }
 
+    if (!formData.acceptsCOD && !formData.acceptsCrypto) {
+      newErrors.payment = "You must accept at least one payment method"
+    }
+
+    if (formData.acceptsCrypto && Object.keys(formData.cryptoAddresses).length === 0) {
+      newErrors.cryptoAddresses = "Please provide at least one cryptocurrency wallet address"
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -375,6 +389,9 @@ export default function SellPage() {
           isVerified: user!.isVerified,
           rating: user!.rating,
           profilePicture: user!.profilePicture,
+          acceptsCrypto: formData.acceptsCrypto,
+          acceptsCOD: formData.acceptsCOD,
+          cryptoAddresses: formData.cryptoAddresses,
         },
         tags,
         status: "active",
@@ -926,6 +943,91 @@ export default function SellPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Payment Options */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <CreditCard className="h-5 w-5" />
+                    <span>Payment Options</span>
+                  </CardTitle>
+                  <CardDescription>
+                    Choose which payment methods you accept for this mystery box
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    {/* Cash on Delivery */}
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="acceptsCOD"
+                        checked={formData.acceptsCOD}
+                        onCheckedChange={(checked) => handleInputChange("acceptsCOD", checked)}
+                      />
+                      <Label htmlFor="acceptsCOD" className="flex items-center space-x-2">
+                        <Package className="h-4 w-4" />
+                        <span>Accept Cash on Delivery (COD)</span>
+                      </Label>
+                    </div>
+
+                    {/* Cryptocurrency */}
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="acceptsCrypto"
+                          checked={formData.acceptsCrypto}
+                          onCheckedChange={(checked) => handleInputChange("acceptsCrypto", checked)}
+                        />
+                        <Label htmlFor="acceptsCrypto" className="flex items-center space-x-2">
+                          <Bitcoin className="h-4 w-4" />
+                          <span>Accept Cryptocurrency</span>
+                        </Label>
+                      </div>
+
+                      {formData.acceptsCrypto && (
+                        <div className="ml-6 space-y-4 p-4 border rounded-lg">
+                          <p className="text-sm text-muted-foreground">
+                            Enter your wallet addresses for the cryptocurrencies you want to accept:
+                          </p>
+                          
+                          <div className="grid gap-4">
+                            {CRYPTOCURRENCIES.map((crypto) => (
+                              <div key={crypto.symbol} className="space-y-2">
+                                <Label htmlFor={`crypto-${crypto.symbol}`}>
+                                  {crypto.symbol} - {crypto.name} ({crypto.network})
+                                </Label>
+                                <Input
+                                  id={`crypto-${crypto.symbol}`}
+                                  value={formData.cryptoAddresses[crypto.symbol] || ""}
+                                  onChange={(e) => {
+                                    const newAddresses = { ...formData.cryptoAddresses }
+                                    if (e.target.value) {
+                                      newAddresses[crypto.symbol] = e.target.value
+                                    } else {
+                                      delete newAddresses[crypto.symbol]
+                                    }
+                                    handleInputChange("cryptoAddresses", newAddresses)
+                                  }}
+                                  placeholder={`Enter your ${crypto.symbol} wallet address`}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {!formData.acceptsCOD && !formData.acceptsCrypto && (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          You must accept at least one payment method.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -177,12 +177,20 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex space-x-2">
-            <Link href="/sell">
-              <Button className="mystery-gradient text-white">
+            {(user.userType === "seller" || user.userType === "both") && user.canSell && (
+              <Link href="/sell">
+                <Button className="mystery-gradient text-white">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Box
+                </Button>
+              </Link>
+            )}
+            {(user.userType === "seller" || user.userType === "both") && !user.canSell && (
+              <Button disabled>
                 <Plus className="h-4 w-4 mr-2" />
-                Create Box
+                Pending Approval
               </Button>
-            </Link>
+            )}
             <Link href="/settings">
               <Button variant="outline">
                 <Settings className="h-4 w-4 mr-2" />
@@ -193,6 +201,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Overview */}
+        {(user.userType === "seller" || user.userType === "both") && (
         <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
@@ -266,16 +275,26 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Tabs */}
-        <Tabs defaultValue="boxes" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="boxes">My Boxes ({myBoxes.length})</TabsTrigger>
-            <TabsTrigger value="purchases">Purchases ({myOrders.length})</TabsTrigger>
-            <TabsTrigger value="sales">Sales ({salesOrders.length})</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        <Tabs defaultValue={user.userType === "buyer" ? "purchases" : "boxes"} className="space-y-6">
+          <TabsList className={`grid w-full ${user.userType === "buyer" ? "grid-cols-1" : user.userType === "both" ? "grid-cols-4" : "grid-cols-3"}`}>
+            {(user.userType === "seller" || user.userType === "both") && (
+              <TabsTrigger value="boxes">My Boxes ({myBoxes.length})</TabsTrigger>
+            )}
+            <TabsTrigger value="purchases">
+              {user.userType === "buyer" ? "My Orders" : "Purchases"} ({myOrders.length})
+            </TabsTrigger>
+            {(user.userType === "seller" || user.userType === "both") && (
+              <TabsTrigger value="sales">Sales ({salesOrders.length})</TabsTrigger>
+            )}
+            {(user.userType === "seller" || user.userType === "both") && (
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            )}
           </TabsList>
 
+          {(user.userType === "seller" || user.userType === "both") && (
           <TabsContent value="boxes">
             <Card>
               <CardHeader>
@@ -352,6 +371,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          )}
 
           <TabsContent value="purchases">
             <Card>
@@ -373,7 +393,11 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex items-center space-x-2">
                           <Badge className={getOrderStatusColor(order.status)}>{order.status}</Badge>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => router.push(`/order/${order.id}`)}
+                          >
                             View Details
                           </Button>
                         </div>
@@ -396,6 +420,8 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
 
+          {(user.userType === "seller" || user.userType === "both") && (
+          <>
           <TabsContent value="sales">
             <Card>
               <CardHeader>
@@ -416,8 +442,12 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex items-center space-x-2">
                           <Badge className={getOrderStatusColor(order.status)}>{order.status}</Badge>
-                          <Button variant="outline" size="sm">
-                            Manage Order
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => router.push(`/order/${order.id}`)}
+                          >
+                            View Order
                           </Button>
                         </div>
                       </div>
@@ -483,6 +513,8 @@ export default function DashboardPage() {
               </Card>
             </div>
           </TabsContent>
+          </>
+          )}
         </Tabs>
       </div>
 

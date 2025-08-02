@@ -410,6 +410,10 @@ export class FirebaseService {
   }
 
   // Seller approval system
+  static async createSellerApplication(userId: string, applicationData: any): Promise<string> {
+    return this.submitSellerApplication(userId, applicationData)
+  }
+
   static async submitSellerApplication(userId: string, applicationData: any): Promise<string> {
     const sanitizedData = this.sanitizeObject(applicationData)
     const requestsRef = ref(db, DB_PATHS.SELLER_REQUESTS)
@@ -960,6 +964,69 @@ export class FirebaseService {
     await update(orderRef, updates)
   }
 
+  // Admin: Get all orders for oversight
+  static async getAllOrders(limit?: number): Promise<Order[]> {
+    try {
+      const ordersRef = ref(db, DB_PATHS.ORDERS)
+      const ordersQuery = limit ? query(ordersRef, orderByChild("createdAt"), limitToLast(limit)) : ordersRef
+      const snapshot = await get(ordersQuery)
+      
+      if (!snapshot.exists()) return []
+      
+      const orders: Order[] = []
+      snapshot.forEach((child) => {
+        orders.unshift(child.val())
+      })
+      
+      return orders
+    } catch (error) {
+      console.error("Error fetching all orders:", error)
+      return []
+    }
+  }
+
+  // Admin: Get orders by status
+  static async getOrdersByStatus(status: Order["status"]): Promise<Order[]> {
+    try {
+      const ordersRef = ref(db, DB_PATHS.ORDERS)
+      const ordersQuery = query(ordersRef, orderByChild("status"), equalTo(status))
+      const snapshot = await get(ordersQuery)
+      
+      if (!snapshot.exists()) return []
+      
+      const orders: Order[] = []
+      snapshot.forEach((child) => {
+        orders.push(child.val())
+      })
+      
+      return orders
+    } catch (error) {
+      console.error("Error fetching orders by status:", error)
+      return []
+    }
+  }
+
+  // Admin: Get users by userType
+  static async getUsersByType(userType: "buyer" | "seller" | "both"): Promise<UserProfile[]> {
+    try {
+      const usersRef = ref(db, DB_PATHS.USERS)
+      const usersQuery = query(usersRef, orderByChild("userType"), equalTo(userType))
+      const snapshot = await get(usersQuery)
+      
+      if (!snapshot.exists()) return []
+      
+      const users: UserProfile[] = []
+      snapshot.forEach((child) => {
+        users.push(child.val())
+      })
+      
+      return users
+    } catch (error) {
+      console.error("Error fetching users by type:", error)
+      return []
+    }
+  }
+
   // Address operations
   static async createAddress(addressData: Omit<Address, "id">): Promise<string> {
     const sanitizedData = this.sanitizeObject(addressData)
@@ -1129,6 +1196,35 @@ export class FirebaseService {
     return conversationId
   }
 
+  // Get existing conversation or create new one between two users
+  static async getOrCreateConversation(participant1Id: string, participant2Id: string): Promise<string> {
+    try {
+      // First, try to find existing conversation
+      const conversationsRef = ref(db, DB_PATHS.CONVERSATIONS)
+      const snapshot = await get(conversationsRef)
+      
+      if (snapshot.exists()) {
+        const conversations = snapshot.val()
+        // Look for existing conversation between these participants
+        for (const [conversationId, conversation] of Object.entries(conversations)) {
+          const conv = conversation as any
+          if (conv.participants && 
+              conv.participants[participant1Id] === true && 
+              conv.participants[participant2Id] === true) {
+            return conversationId
+          }
+        }
+      }
+      
+      // If no existing conversation found, create new one
+      return await this.createConversation(participant1Id, participant2Id)
+    } catch (error) {
+      console.error("Error getting or creating conversation:", error)
+      // Fallback to creating new conversation
+      return await this.createConversation(participant1Id, participant2Id)
+    }
+  }
+
   static async sendMessageToAdmin(userId: string, subject: string, content: string, priority: "low" | "medium" | "high" | "urgent" = "medium"): Promise<string> {
     // Find admin user
     const adminUser = await this.getUserByEmail("uzairxdev223@gmail.com")
@@ -1250,6 +1346,27 @@ export class FirebaseService {
     })
 
     return conversationId
+  }
+
+  // Send order message to seller
+  static async sendOrderMessage(buyerId: string, sellerId: string, content: string, orderId: string): Promise<string> {
+    // Create or get conversation
+    const conversationId = await this.getOrCreateConversation(buyerId, sellerId)
+    
+    // Send the order message
+    const messageId = await this.sendMessage(conversationId, buyerId, sellerId, content)
+    
+    // Create notification for seller
+    await this.createNotification({
+      userId: sellerId,
+      type: "order",
+      title: "New Order Received",
+      message: "You have received a new order. Please check your messages for details.",
+      actionUrl: `/order/${orderId}`,
+      data: { orderId, buyerId }
+    })
+    
+    return messageId
   }
 
   // Purchase inquiry tracking

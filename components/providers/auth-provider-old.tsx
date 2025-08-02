@@ -20,7 +20,7 @@ interface AuthContextType {
   loading: boolean
   isAdmin: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string, username: string, fullName: string, userType?: "buyer" | "seller" | "both") => Promise<void>
+  register: (email: string, password: string, username: string, fullName: string) => Promise<void>
   logout: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
   checkUsernameAvailability: (username: string) => Promise<boolean>
@@ -49,6 +49,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (userProfile) {
             setUser(userProfile)
           } else {
+            // User exists in Firebase Auth but not in database
+            // This should only happen in rare cases, so we'll create a minimal profile
+            // and let the user update their information
             console.warn("User profile not found in database, this should not happen during normal registration")
             setUser(null)
           }
@@ -69,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signInWithEmailAndPassword(auth, email, password)
   }
 
-  const register = async (email: string, password: string, username: string, fullName: string, userType: "buyer" | "seller" | "both" = "buyer") => {
+  const register = async (email: string, password: string, username: string, fullName: string) => {
     // Check username availability
     const isAvailable = await FirebaseService.checkUsernameAvailability(username)
     if (!isAvailable) {
@@ -77,10 +80,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const { user: firebaseUser } = await createUserWithEmailAndPassword(auth, email, password)
-
-    // Determine default values based on user type
-    const canSell = userType === "seller" || userType === "both"
-    const sellerApplicationStatus = canSell ? "pending" : "none"
 
     // Create user profile
     const userProfile: Partial<UserProfile> = {
@@ -91,12 +90,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profilePicture: generateProfilePicture(fullName),
       isVerified: false,
       isEmailVerified: true,
-      userType,
-      isApprovedSeller: false,
-      canSell: false, // Will be set to true after approval for sellers
-      isBanned: false,
-      sellerApplicationStatus,
-      verificationStatus: "none",
       loyaltyTier: "bronze",
       rating: 0,
       totalSales: 0,
@@ -114,25 +107,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fulfillmentRate: 0,
         returnRate: 0,
       },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     }
 
     await FirebaseService.createUser(firebaseUser.uid, userProfile)
     await FirebaseService.reserveUsername(username, firebaseUser.uid)
-    
-    // If user wants to be a seller, create seller application
-    if (canSell) {
-      await FirebaseService.createSellerApplication(firebaseUser.uid, {
-        businessInfo: {
-          businessType: "individual",
-          description: "",
-          experience: "",
-          categories: [],
-          expectedVolume: "",
-        }
-      })
-    }
     
     // Fetch the created user profile and set it in state to auto-login
     const createdProfile = await FirebaseService.getUser(firebaseUser.uid)
@@ -176,8 +154,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return false
 
     try {
+      // Use the new updateUsername method that handles both profile and usernames collection
       await FirebaseService.updateUsername(user.uid, user.username, newUsername)
+      
+      // Refresh user data to get updated info
       await refreshUser()
+      
       return true
     } catch (error) {
       console.error("Failed to update username:", error)
@@ -187,6 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasTemporaryUsername = (): boolean => {
     if (!user) return false
+    // Check if username contains timestamp pattern (ends with _xxxxxx)
     return /_\d{6}$/.test(user.username)
   }
 

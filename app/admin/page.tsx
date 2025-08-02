@@ -44,6 +44,7 @@ import type {
   UserProfile,
   MysteryBox,
   PlatformSettings,
+  Order,
 } from "@/lib/types"
 
 export default function AdminPage() {
@@ -62,6 +63,10 @@ export default function AdminPage() {
     bannedUsers: 0,
     activeBoxes: 0,
     pendingBoxes: 0,
+    totalOrders: 0,
+    buyerUsers: 0,
+    sellerUsers: 0,
+    bothUsers: 0,
   })
 
   const [approvedBoxes, setApprovedBoxes] = useState<MysteryBox[]>([])
@@ -73,9 +78,12 @@ export default function AdminPage() {
   const [adminMessages, setAdminMessages] = useState<AdminMessage[]>([])
   const [allUsers, setAllUsers] = useState<UserProfile[]>([])
   const [allBoxes, setAllBoxes] = useState<MysteryBox[]>([])
+  const [allOrders, setAllOrders] = useState<Order[]>([])
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null)
   const [dataLoading, setDataLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [userTypeFilter, setUserTypeFilter] = useState<"all" | "buyer" | "seller" | "both">("all")
+  const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | Order["status"]>("all")
 
   // Custom notification states
   const [notificationForm, setNotificationForm] = useState({
@@ -112,6 +120,10 @@ export default function AdminPage() {
         users,
         boxes,
         approved,
+        orders,
+        buyerUsers,
+        sellerUsers,
+        bothUsers,
         settings,
       ] = await Promise.all([
         FirebaseService.getPlatformStats(),
@@ -122,10 +134,20 @@ export default function AdminPage() {
         FirebaseService.getAllUsers(100),
         FirebaseService.getAllBoxes(),
         FirebaseService.getAllBoxes().then(boxes => boxes.filter(box => box.status === 'active')),
+        FirebaseService.getAllOrders(100),
+        FirebaseService.getUsersByType("buyer"),
+        FirebaseService.getUsersByType("seller"),
+        FirebaseService.getUsersByType("both"),
         FirebaseService.getPlatformSettings(),
       ])
 
-      setStats(platformStats || {
+      setStats(platformStats ? {
+        ...platformStats,
+        totalOrders: orders?.length || 0,
+        buyerUsers: buyerUsers?.length || 0,
+        sellerUsers: sellerUsers?.length || 0,
+        bothUsers: bothUsers?.length || 0,
+      } : {
         totalUsers: 0,
         totalBoxes: 0,
         pendingVerifications: 0,
@@ -136,6 +158,10 @@ export default function AdminPage() {
         bannedUsers: 0,
         activeBoxes: 0,
         pendingBoxes: 0,
+        totalOrders: orders?.length || 0,
+        buyerUsers: buyerUsers?.length || 0,
+        sellerUsers: sellerUsers?.length || 0,
+        bothUsers: bothUsers?.length || 0,
       })
       setVerificationRequests(pendingVerifications || [])
       setSellerApplications(pendingSellerApps || [])
@@ -143,6 +169,7 @@ export default function AdminPage() {
       setAdminMessages(pendingMessages || [])
       setAllUsers(users || [])
       setAllBoxes(boxes || [])
+      setAllOrders(orders || [])
       setApprovedBoxes(approved || [])
       setPlatformSettings(settings)
     } catch (error) {
@@ -611,17 +638,54 @@ export default function AdminPage() {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
+                  <p className="text-2xl font-bold">{stats.totalOrders}</p>
+                </div>
+                <Package className="h-8 w-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Buyer Users</p>
+                  <p className="text-2xl font-bold">{stats.buyerUsers}</p>
+                </div>
+                <Users className="h-8 w-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Seller Users</p>
+                  <p className="text-2xl font-bold">{stats.sellerUsers}</p>
+                </div>
+                <Users className="h-8 w-8 text-orange-500" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Admin Tabs */}
         <Tabs defaultValue="platform-settings" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-10">
+          <TabsList className="grid w-full grid-cols-11">
             <TabsTrigger value="platform-settings">Settings</TabsTrigger>
             <TabsTrigger value="seller-applications">Sellers ({sellerApplications?.length || 0})</TabsTrigger>
             <TabsTrigger value="verifications">Verify ({verificationRequests?.length || 0})</TabsTrigger>
             <TabsTrigger value="box-moderation">Pending ({stats.pendingBoxes})</TabsTrigger>
             <TabsTrigger value="approved-boxes">Active ({approvedBoxes?.length || 0})</TabsTrigger>
             <TabsTrigger value="user-management">Users</TabsTrigger>
+            <TabsTrigger value="order-management">Orders ({stats.totalOrders})</TabsTrigger>
             <TabsTrigger value="messages">Messages ({adminMessages?.length || 0})</TabsTrigger>
             <TabsTrigger value="reports">Reports ({reports?.length || 0})</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
@@ -1112,6 +1176,17 @@ export default function AdminPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-4 mb-4">
                     <Input placeholder="Search users..." className="max-w-sm" />
+                    <Select value={userTypeFilter} onValueChange={(value) => setUserTypeFilter(value as typeof userTypeFilter)}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Filter by type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Users</SelectItem>
+                        <SelectItem value="buyer">Buyers Only</SelectItem>
+                        <SelectItem value="seller">Sellers Only</SelectItem>
+                        <SelectItem value="both">Buyer & Seller</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Select>
                       <SelectTrigger className="w-40">
                         <SelectValue placeholder="Filter by status" />
@@ -1120,13 +1195,15 @@ export default function AdminPage() {
                         <SelectItem value="all">All Users</SelectItem>
                         <SelectItem value="banned">Banned</SelectItem>
                         <SelectItem value="verified">Verified</SelectItem>
-                        <SelectItem value="sellers">Sellers</SelectItem>
+                        <SelectItem value="sellers">Approved Sellers</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-3">
-                    {allUsers && allUsers.slice(0, 20).map((user) => (
+                    {allUsers && allUsers
+                      .filter(user => userTypeFilter === "all" || user.userType === userTypeFilter)
+                      .slice(0, 20).map((user) => (
                       <div key={user.uid} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
@@ -1142,14 +1219,17 @@ export default function AdminPage() {
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="font-medium">{user.fullName}</p>
-                              {user.isVerified && <Badge variant="secondary">Verified</Badge>}
-                              {user.isApprovedSeller && <Badge variant="outline">Seller</Badge>}
-                              {user.isBanned && <Badge variant="destructive">Banned</Badge>}
-                              <Badge variant="default" className="text-xs">
-                                {user.isApprovedSeller ? (user.isVerified ? 'Admin' : 'Seller') : 'User'}
-                              </Badge>
-                            </div>
+                            <p className="font-medium">{user.fullName}</p>
+                            {user.isVerified && <Badge variant="secondary">Verified</Badge>}
+                            {user.isApprovedSeller && <Badge variant="outline">Seller</Badge>}
+                            {user.isBanned && <Badge variant="destructive">Banned</Badge>}
+                            <Badge variant="default" className="text-xs">
+                            {user.userType?.charAt(0).toUpperCase() + user.userType?.slice(1) || 'User'}
+                            </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                  {user.isApprovedSeller ? 'Approved' : 'Regular'}
+                                </Badge>
+                              </div>
                             <p className="text-sm text-muted-foreground">
                               @{user.username} • {user.email}
                             </p>
@@ -1243,6 +1323,107 @@ export default function AdminPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="order-management">
+            <Card>
+              <CardHeader>
+                <CardTitle>Order Management</CardTitle>
+                <CardDescription>Monitor and manage all platform orders</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 mb-4">
+                    <Input placeholder="Search orders..." className="max-w-sm" />
+                    <Select value={orderStatusFilter} onValueChange={(value) => setOrderStatusFilter(value as typeof orderStatusFilter)}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Orders</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
+                        <SelectItem value="processing">Processing</SelectItem>
+                        <SelectItem value="shipped">Shipped</SelectItem>
+                        <SelectItem value="delivered">Delivered</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                        <SelectItem value="disputed">Disputed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-3">
+                    {allOrders && allOrders
+                      .filter(order => orderStatusFilter === "all" || order.status === orderStatusFilter)
+                      .slice(0, 20).map((order) => (
+                      <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
+                            <Package className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">Order #{order.id.slice(-8)}</p>
+                              <Badge 
+                                variant={
+                                  order.status === "delivered" ? "default" :
+                                  order.status === "cancelled" ? "destructive" :
+                                  order.status === "disputed" ? "destructive" :
+                                  order.status === "shipped" ? "secondary" : "outline"
+                                }
+                              >
+                                {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {order.paymentMethod.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              ${order.paymentDetails.amount} • {order.quantity} items • {new Date(order.createdAt).toLocaleDateString()}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Buyer ID: {order.buyerId.slice(-8)} • Seller ID: {order.sellerId.slice(-8)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => router.push(`/order/${order.id}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                          {order.status === "disputed" && (
+                            <Button 
+                              size="sm" 
+                              variant="secondary"
+                              onClick={() => {
+                                // Handle dispute resolution
+                                toast({
+                                  title: "Dispute Resolution",
+                                  description: "Opening dispute resolution interface...",
+                                })
+                              }}
+                            >
+                              <Shield className="h-4 w-4 mr-1" />
+                              Resolve
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {(!allOrders || allOrders.length === 0) && (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No orders found</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1602,7 +1783,11 @@ export default function AdminPage() {
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <span>Active Sellers</span>
-                      <span className="font-medium">{Math.round(stats.totalUsers * 0.15)}</span>
+                      <span className="font-medium">{stats.sellerUsers + stats.bothUsers}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Order Completion Rate</span>
+                      <span className="font-medium">{stats.totalOrders > 0 ? Math.round((allOrders.filter(o => o.status === "delivered").length / stats.totalOrders) * 100) : 0}%</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Avg Response Time</span>
@@ -1644,6 +1829,72 @@ export default function AdminPage() {
                     <div className="flex justify-between">
                       <span>Monthly Growth</span>
                       <span className="font-medium text-green-600">+18.2%</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    Marketplace Metrics
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span>Total Orders</span>
+                      <span className="font-medium">{stats.totalOrders}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Active Orders</span>
+                      <span className="font-medium">{allOrders.filter(o => ["pending", "paid", "processing", "shipped"].includes(o.status)).length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Disputed Orders</span>
+                      <span className="font-medium text-red-600">{allOrders.filter(o => o.status === "disputed").length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Crypto Orders</span>
+                      <span className="font-medium">{allOrders.filter(o => o.paymentMethod === "crypto").length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>COD Orders</span>
+                      <span className="font-medium">{allOrders.filter(o => o.paymentMethod === "cod").length}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    User Distribution
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span>Buyer Only</span>
+                      <span className="font-medium">{stats.buyerUsers}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Seller Only</span>
+                      <span className="font-medium">{stats.sellerUsers}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Both Buyer & Seller</span>
+                      <span className="font-medium">{stats.bothUsers}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Approved Sellers</span>
+                      <span className="font-medium">{allUsers.filter(u => u.isApprovedSeller).length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Verified Users</span>
+                      <span className="font-medium">{allUsers.filter(u => u.isVerified).length}</span>
                     </div>
                   </div>
                 </CardContent>

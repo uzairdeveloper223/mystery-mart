@@ -119,8 +119,11 @@ export default function BoxOrderManagementPage() {
     try {
       // Get all conversations for this seller
       const conversations = await new Promise<any[]>((resolve) => {
-        const unsubscribe = FirebaseService.subscribeToUserConversations(user!.uid, (convs) => {
-          unsubscribe()
+        let unsubscribe: (() => void) | undefined
+        unsubscribe = FirebaseService.subscribeToUserConversations(user!.uid, (convs) => {
+          if (unsubscribe) {
+            unsubscribe()
+          }
           resolve(convs)
         })
       })
