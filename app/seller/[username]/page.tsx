@@ -493,14 +493,14 @@ export default function SellerProfilePage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Your ETH Address (From):</label>
-                  <div className="p-3 bg-gray-50 rounded-md font-mono text-sm">
+                  <div className="p-3 bg-muted rounded-md font-mono text-sm">
                     {donorEthAddress}
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Seller's ETH Address (To):</label>
-                  <div className="p-3 bg-gray-50 rounded-md font-mono text-sm break-all">
+                  <div className="p-3 bg-muted rounded-md font-mono text-sm break-all">
                     {seller.ethAddress}
                   </div>
                 </div>

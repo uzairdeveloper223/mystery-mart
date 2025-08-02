@@ -283,6 +283,65 @@ export default function AdminPage() {
     }
   }
 
+  // Generate fake follower ID (letters only, no numbers)
+  const generateFakeFollowerId = (): string => {
+    const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    let result = ''
+    for (let i = 0; i < 22; i++) {
+      result += letters.charAt(Math.floor(Math.random() * letters.length))
+    }
+    return result
+  }
+
+  const handleAddFakeFollowers = async (userId: string, count: number) => {
+    setActionLoading(userId)
+    try {
+      for (let i = 0; i < count; i++) {
+        const fakeFollowerId = generateFakeFollowerId()
+        await FirebaseService.addFakeFollower(userId, fakeFollowerId)
+      }
+
+      toast({
+        title: "Success",
+        description: `Added ${count} fake followers`,
+      })
+
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to add fake followers:", error)
+      toast({
+        title: "Error",
+        description: "Failed to add fake followers",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleRemoveFakeFollowers = async (userId: string, count: number) => {
+    setActionLoading(userId)
+    try {
+      await FirebaseService.removeFakeFollowers(userId, count)
+
+      toast({
+        title: "Success",
+        description: `Removed up to ${count} fake followers`,
+      })
+
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to remove fake followers:", error)
+      toast({
+        title: "Error",
+        description: "Failed to remove fake followers",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   const handleUserBan = async (userId: string, reason: string, duration?: number) => {
     try {
       await FirebaseService.banUser(userId, reason, duration)
@@ -1066,7 +1125,7 @@ export default function AdminPage() {
                           </div>
                           <div>
                             <p className="text-sm font-medium mb-1">Requested Username:</p>
-                            <p className="text-sm bg-muted p-2 rounded">@{request.newUsername}</p>
+                            <p className="text-sm bg-muted p-2 rounded">@{request.requestedUsername}</p>
                           </div>
                         </div>
 
@@ -1423,6 +1482,28 @@ export default function AdminPage() {
                             <Eye className="h-4 w-4 mr-1" />
                             View
                           </Button>
+
+                          {/* Follower Controls */}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleAddFakeFollowers(user.uid, 10)}
+                              disabled={actionLoading === user.uid}
+                              className="h-8 px-2"
+                            >
+                              +10 Followers
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRemoveFakeFollowers(user.uid, 10)}
+                              disabled={actionLoading === user.uid}
+                              className="h-8 px-2"
+                            >
+                              -10 Followers
+                            </Button>
+                          </div>
 
                           {/* Delete User */}
                           <Button 

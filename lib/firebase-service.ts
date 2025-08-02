@@ -761,16 +761,26 @@ export class FirebaseService {
       throw new Error("Username is no longer available")
     }
 
+    // Update username mappings first
+    const oldUsernameRef = ref(db, `${DB_PATHS.USERNAMES}/${requestData.currentUsername}`)
+    const newUsernameRef = ref(db, `${DB_PATHS.USERNAMES}/${requestData.requestedUsername}`)
+    
+    // Remove old username mapping
+    await remove(oldUsernameRef)
+    
+    // Add new username mapping
+    await set(newUsernameRef, requestData.userId)
+
+    // Update the user's username
+    await this.updateUser(requestData.userId, {
+      username: requestData.requestedUsername,
+    })
+
     // Update the username change request
     await update(requestRef, {
       status: "approved",
       reviewedAt: new Date().toISOString(),
       reviewedBy: adminId,
-    })
-
-    // Update the user's username
-    await this.updateUser(requestData.userId, {
-      username: requestData.requestedUsername,
     })
 
     // Create notification
@@ -804,6 +814,44 @@ export class FirebaseService {
       title: "Username Change Request Rejected",
       message: `Your username change request was rejected. Reason: ${notes}`,
     })
+  }
+
+  // Fake follower management for admin panel
+  static async addFakeFollower(userId: string, fakeFollowerId: string): Promise<void> {
+    const followedAt = new Date().toISOString()
+    
+    // Add to followers collection: followers/{userId}/{fakeFollowerId}
+    const followerRef = ref(db, `followers/${userId}/${fakeFollowerId}`)
+    await set(followerRef, { followedAt })
+    
+    // Add to follows collection: follows/{fakeFollowerId}/{userId}  
+    const followRef = ref(db, `follows/${fakeFollowerId}/${userId}`)
+    await set(followRef, { followedAt })
+  }
+
+  static async removeFakeFollowers(userId: string, count: number): Promise<void> {
+    // Get current followers
+    const followersRef = ref(db, `followers/${userId}`)
+    const snapshot = await get(followersRef)
+    
+    if (!snapshot.exists()) return
+    
+    const followers = Object.keys(snapshot.val())
+    // Filter for fake followers (letters only, no numbers)
+    const fakeFollowers = followers.filter(id => /^[a-zA-Z]+$/.test(id))
+    
+    // Remove up to the specified count
+    const toRemove = fakeFollowers.slice(0, Math.min(count, fakeFollowers.length))
+    
+    for (const fakeFollowerId of toRemove) {
+      // Remove from followers collection
+      const followerRef = ref(db, `followers/${userId}/${fakeFollowerId}`)
+      await remove(followerRef)
+      
+      // Remove from follows collection
+      const followRef = ref(db, `follows/${fakeFollowerId}/${userId}`)
+      await remove(followRef)
+    }
   }
 
   // Admin messaging system
