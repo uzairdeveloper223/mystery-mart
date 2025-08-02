@@ -22,7 +22,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { FirebaseService } from "@/lib/firebase-service"
 
 import { useToast } from "@/hooks/use-toast"
-import { User, Settings, Bell, MapPin, Shield, CheckCircle, Clock, X, Upload, Star, Award, Plus, Navigation, Trash2 } from "lucide-react"
+import { User, Settings, Bell, MapPin, Shield, CheckCircle, Clock, X, Upload, Star, Award, Plus, Navigation, Trash2, DollarSign, Palette, Edit3} from "lucide-react"
 import type { Address } from "@/lib/types"
 
 export default function SettingsPage() {
@@ -35,6 +35,17 @@ export default function SettingsPage() {
   const [addresses, setAddresses] = useState<Address[]>([])
   const [showVerificationRequest, setShowVerificationRequest] = useState(false)
   const [verificationMessage, setVerificationMessage] = useState("")
+  
+  // Avatar editor states
+  const [showAvatarEditor, setShowAvatarEditor] = useState(false)
+  const [avatarConfig, setAvatarConfig] = useState({
+    backgroundColor: "#3b82f6", // Default blue
+    textColor: "#ffffff",
+    fontSize: "90",
+    fontWeight: "600",
+    borderRadius: "50",
+    letter: "U"
+  })
   
   // Address management states
   const [showAddressDialog, setShowAddressDialog] = useState(false)
@@ -81,6 +92,17 @@ export default function SettingsPage() {
     theme: "system" as "light" | "dark" | "system",
   })
 
+  const [ethAddress, setEthAddress] = useState("")
+  const [ethAddressLoading, setEthAddressLoading] = useState(false)
+
+  // Username change request states
+  const [showUsernameRequest, setShowUsernameRequest] = useState(false)
+  const [usernameRequestForm, setUsernameRequestForm] = useState({
+    newUsername: "",
+    reason: "",
+  })
+  const [usernameRequestLoading, setUsernameRequestLoading] = useState(false)
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/auth/login")
@@ -95,6 +117,14 @@ export default function SettingsPage() {
         instagram: user.socialLinks?.instagram || "",
       })
       setPreferences(user.preferences || preferences)
+      setEthAddress(user.ethAddress || "")
+      
+      // Update avatar config with user's first letter
+      setAvatarConfig(prev => ({
+        ...prev,
+        letter: user.fullName?.charAt(0)?.toUpperCase() || "U"
+      }))
+      
       fetchAddresses()
     }
   }, [user, authLoading, router])
@@ -170,6 +200,9 @@ export default function SettingsPage() {
     }
   }
 
+  // Check if user has default avatar (no profile picture or placeholder)
+  const hasDefaultAvatar = !user?.profilePicture || user.profilePicture === "/placeholder.svg" || user.profilePicture.startsWith("data:image/svg+xml")
+
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file || !user) return
@@ -234,6 +267,62 @@ export default function SettingsPage() {
     }
   }
 
+  const generateAvatarSvg = (config: typeof avatarConfig) => {
+    return `data:image/svg+xml,${encodeURIComponent(`
+      <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+        <circle 
+          cx="100" 
+          cy="100" 
+          r="${config.borderRadius === "50" ? "100" : "20"}" 
+          fill="${config.backgroundColor}"
+        />
+        <text 
+          x="100" 
+          y="100" 
+          text-anchor="middle" 
+          dominant-baseline="central" 
+          font-size="${config.fontSize}px" 
+          font-weight="${config.fontWeight}" 
+          fill="${config.textColor}"
+          font-family="system-ui, -apple-system, sans-serif"
+        >
+          ${config.letter}
+        </text>
+      </svg>
+    `)}`
+  }
+
+  const handleSaveCustomAvatar = async () => {
+    if (!user) return
+
+    setUploadingPhoto(true)
+    try {
+      const avatarSvg = generateAvatarSvg(avatarConfig)
+      
+      // Save the SVG data URL directly to Firebase
+      await FirebaseService.updateUser(user.uid, {
+        profilePicture: avatarSvg,
+      })
+
+      toast({
+        title: "Avatar Updated",
+        description: "Your custom avatar has been saved successfully",
+      })
+
+      await refreshUser()
+      setShowAvatarEditor(false)
+    } catch (error) {
+      console.error("Failed to save avatar:", error)
+      toast({
+        title: "Save Failed",
+        description: "Failed to save custom avatar. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+
   const handleVerificationRequest = async () => {
     if (!user || !verificationMessage.trim()) {
       toast({
@@ -264,6 +353,114 @@ export default function SettingsPage() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleUsernameChangeRequest = async () => {
+    if (!user || !usernameRequestForm.newUsername.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a new username",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!usernameRequestForm.reason.trim()) {
+      toast({
+        title: "Error", 
+        description: "Please provide a reason for the username change",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate username format
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/
+    if (!usernameRegex.test(usernameRequestForm.newUsername)) {
+      toast({
+        title: "Invalid Username",
+        description: "Username must be 3-20 characters long and contain only letters, numbers, and underscores",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setUsernameRequestLoading(true)
+    try {
+      await FirebaseService.requestUsernameChange(
+        user.uid, 
+        usernameRequestForm.newUsername.toLowerCase().trim(),
+        usernameRequestForm.reason.trim()
+      )
+
+      toast({
+        title: "Username Change Requested",
+        description: "Your username change request has been submitted to admin for review",
+      })
+
+      setShowUsernameRequest(false)
+      setUsernameRequestForm({
+        newUsername: "",
+        reason: "",
+      })
+    } catch (error) {
+      console.error("Failed to request username change:", error)
+      toast({
+        title: "Error",
+        description: "Failed to submit username change request",
+        variant: "destructive",
+      })
+    } finally {
+      setUsernameRequestLoading(false)
+    }
+  }
+
+  const handleEthAddressUpdate = async () => {
+    if (!user) return
+
+    // Validate ETH address format
+    const ethRegex = /^0x[a-fA-F0-9]{40}$/
+    if (ethAddress && !ethRegex.test(ethAddress)) {
+      toast({
+        title: "Invalid ETH Address",
+        description: "Please enter a valid Ethereum address (0x...)",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setEthAddressLoading(true)
+    try {
+      // Use the new donation address validation function
+      await FirebaseService.updateDonationAddress(user.uid, ethAddress.trim())
+
+      // Refresh user data to reflect changes
+      await refreshUser()
+
+      toast({
+        title: "ETH Address Updated",
+        description: "Your Ethereum address has been saved successfully",
+      })
+    } catch (error) {
+      console.error("Failed to update ETH address:", error)
+      
+      // Handle specific error for duplicate address
+      if (error instanceof Error && error.message.includes("already being used")) {
+        toast({
+          title: "Address Already in Use",
+          description: "This Ethereum address is already being used by another user. Please use a different address.",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update ETH address",
+          variant: "destructive",
+        })
+      }
+    } finally {
+      setEthAddressLoading(false)
     }
   }
 
@@ -677,11 +874,12 @@ export default function SettingsPage() {
           </div>
 
           <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="account">Account</TabsTrigger>
               <TabsTrigger value="notifications">Notifications</TabsTrigger>
               <TabsTrigger value="addresses">Addresses</TabsTrigger>
+              <TabsTrigger value="donations">Donations</TabsTrigger>
               <TabsTrigger value="security">Security</TabsTrigger>
             </TabsList>
 
@@ -701,24 +899,43 @@ export default function SettingsPage() {
                         <AvatarImage src={user.profilePicture || "/placeholder.svg"} alt={user.fullName} />
                         <AvatarFallback className="text-xl">{user.fullName?.charAt(0) || "U"}</AvatarFallback>
                       </Avatar>
-                      <div>
-                        <input
-                          type="file"
-                          id="profile-photo-upload"
-                          accept="image/*"
-                          onChange={handlePhotoUpload}
-                          className="hidden"
-                        />
-                        <Button 
-                          type="button" 
-                          variant="outline"
-                          onClick={() => document.getElementById('profile-photo-upload')?.click()}
-                          disabled={uploadingPhoto}
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          {uploadingPhoto ? "Uploading..." : "Change Photo"}
-                        </Button>
-                        <p className="text-sm text-muted-foreground mt-2">JPG, PNG or GIF. Max size 5MB.</p>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="file"
+                            id="profile-photo-upload"
+                            accept="image/*"
+                            onChange={handlePhotoUpload}
+                            className="hidden"
+                          />
+                          <Button 
+                            type="button" 
+                            variant="outline"
+                            onClick={() => document.getElementById('profile-photo-upload')?.click()}
+                            disabled={uploadingPhoto}
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            {uploadingPhoto ? "Uploading..." : "Upload Photo"}
+                          </Button>
+                          
+                          {/* Edit Avatar button - only show for default avatars */}
+                          {hasDefaultAvatar && (
+                            <Button 
+                              type="button" 
+                              variant="outline"
+                              onClick={() => setShowAvatarEditor(true)}
+                              disabled={uploadingPhoto}
+                            >
+                              <Palette className="h-4 w-4 mr-2" />
+                              Edit Avatar
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {hasDefaultAvatar 
+                            ? "Upload a photo or customize your avatar letter"
+                            : "JPG, PNG or GIF. Max size 5MB."}
+                        </p>
                       </div>
                     </div>
 
@@ -742,7 +959,20 @@ export default function SettingsPage() {
                           placeholder="Enter your username"
                           disabled
                         />
-                        <p className="text-xs text-muted-foreground">Username cannot be changed</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground">
+                            Want to change your username?
+                          </p>
+                          <Button
+                            type="button"
+                            variant="link"
+                            size="sm"
+                            onClick={() => setShowUsernameRequest(true)}
+                            className="text-xs p-0 h-auto text-primary hover:text-primary/80"
+                          >
+                            Click here to request a change
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
@@ -811,6 +1041,86 @@ export default function SettingsPage() {
                   </form>
                 </CardContent>
               </Card>
+
+              {/* Username Change Request Dialog */}
+              <Dialog open={showUsernameRequest} onOpenChange={setShowUsernameRequest}>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Request Username Change</DialogTitle>
+                    <DialogDescription>
+                      Submit a request to change your username. Our admin team will review your request and manually update your username if approved.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-4">
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-700">
+                        <strong>Current Username:</strong> @{user.username}
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Username changes require admin approval and may take 1-3 business days to process.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="newUsername">Requested Username</Label>
+                      <Input
+                        id="newUsername"
+                        value={usernameRequestForm.newUsername}
+                        onChange={(e) => setUsernameRequestForm(prev => ({ ...prev, newUsername: e.target.value }))}
+                        placeholder="Enter your desired username"
+                        className="lowercase"
+                      />
+                      {usernameRequestForm.newUsername && (
+                        <p className="text-xs text-blue-600">
+                          Will be saved as: <span className="font-mono bg-blue-100 px-1 rounded">@{usernameRequestForm.newUsername.toLowerCase()}</span>
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        3-20 characters, letters, numbers, and underscores only
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="reason">Reason for Change</Label>
+                      <Textarea
+                        id="reason"
+                        value={usernameRequestForm.reason}
+                        onChange={(e) => setUsernameRequestForm(prev => ({ ...prev, reason: e.target.value }))}
+                        placeholder="Please explain why you want to change your username..."
+                        rows={3}
+                        maxLength={500}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {usernameRequestForm.reason.length}/500 characters
+                      </p>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowUsernameRequest(false)
+                        setUsernameRequestForm({
+                          newUsername: "",
+                          reason: "",
+                        })
+                      }}
+                      disabled={usernameRequestLoading}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleUsernameChangeRequest}
+                      disabled={usernameRequestLoading || !usernameRequestForm.newUsername.trim() || !usernameRequestForm.reason.trim()}
+                      className="mystery-gradient text-white"
+                    >
+                      {usernameRequestLoading ? "Submitting..." : "Submit Request"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </TabsContent>
 
             <TabsContent value="account">
@@ -1232,6 +1542,68 @@ export default function SettingsPage() {
 
             </TabsContent>
 
+            <TabsContent value="donations">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <DollarSign className="h-5 w-5" />
+                    <span>Donation Settings</span>
+                  </CardTitle>
+                  <CardDescription>
+                    Set up your Ethereum address to receive donations from others
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="p-4 bg-muted rounded-lg">
+                      <h4 className="font-medium mb-2">How Donations Work</h4>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Add your Ethereum address to receive ETH donations</li>
+                        <li>• Others can donate to you through your seller profile</li>
+                        <li>• We verify donations using Etherscan API</li>
+                        <li>• You'll be notified when someone donates to you</li>
+                      </ul>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="ethAddress">Ethereum Address (ETH only)</Label>
+                      <Input
+                        id="ethAddress"
+                        type="text"
+                        value={ethAddress}
+                        onChange={(e) => setEthAddress(e.target.value)}
+                        placeholder="0x1234567890abcdef1234567890abcdef12345678"
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Enter your Ethereum wallet address. Each address can only be used by one user. Make sure it's correct as this cannot be easily changed.
+                      </p>
+                    </div>
+
+                    <Button 
+                      onClick={handleEthAddressUpdate} 
+                      disabled={ethAddressLoading}
+                      className="mystery-gradient text-white"
+                    >
+                      {ethAddressLoading ? "Saving..." : "Save ETH Address"}
+                    </Button>
+
+                    {ethAddress && (
+                      <div className="p-4 border rounded-lg bg-green-50">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-800">ETH Address Configured</span>
+                        </div>
+                        <p className="text-xs text-green-700">
+                          Others can now send you ETH donations through your profile page.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             <TabsContent value="security">
               <div className="space-y-6">
                 <Card>
@@ -1400,6 +1772,196 @@ export default function SettingsPage() {
           </Tabs>
         </div>
       </div>
+
+      {/* Avatar Editor Dialog */}
+      <Dialog open={showAvatarEditor} onOpenChange={setShowAvatarEditor}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Customize Your Avatar</DialogTitle>
+            <DialogDescription>
+              Design your personalized avatar letter with custom colors and styling. The avatar text may look big but its size will be adjusted based on the container size.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Preview */}
+            <div className="flex justify-center">
+              <div 
+                className="w-24 h-24 rounded-full flex items-center justify-center text-2xl font-semibold transition-all duration-200"
+                style={{
+                  backgroundColor: avatarConfig.backgroundColor,
+                  color: avatarConfig.textColor,
+                  fontSize: `${parseInt(avatarConfig.fontSize) * 1.5}px`,
+                  fontWeight: avatarConfig.fontWeight,
+                  borderRadius: avatarConfig.borderRadius === "50" ? "50%" : "12px"
+                }}
+              >
+                {avatarConfig.letter}
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div className="space-y-4">
+              {/* Letter Input */}
+              <div className="space-y-2">
+                <Label htmlFor="avatar-letter">Avatar Letter</Label>
+                <Input
+                  id="avatar-letter"
+                  value={avatarConfig.letter}
+                  onChange={(e) => setAvatarConfig(prev => ({ 
+                    ...prev, 
+                    letter: e.target.value.charAt(0).toUpperCase() 
+                  }))}
+                  maxLength={1}
+                  placeholder="Enter letter"
+                  className="text-center text-lg font-semibold"
+                />
+              </div>
+
+              {/* Background Color */}
+              <div className="space-y-2">
+                <Label htmlFor="bg-color">Background Color</Label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    id="bg-color"
+                    type="color"
+                    value={avatarConfig.backgroundColor}
+                    onChange={(e) => setAvatarConfig(prev => ({ 
+                      ...prev, 
+                      backgroundColor: e.target.value 
+                    }))}
+                    className="w-12 h-10 rounded border cursor-pointer"
+                  />
+                  <Input
+                    value={avatarConfig.backgroundColor}
+                    onChange={(e) => setAvatarConfig(prev => ({ 
+                      ...prev, 
+                      backgroundColor: e.target.value 
+                    }))}
+                    placeholder="#000000"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              {/* Text Color */}
+              <div className="space-y-2">
+                <Label htmlFor="text-color">Text Color</Label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    id="text-color"
+                    type="color"
+                    value={avatarConfig.textColor}
+                    onChange={(e) => setAvatarConfig(prev => ({ 
+                      ...prev, 
+                      textColor: e.target.value 
+                    }))}
+                    className="w-12 h-10 rounded border cursor-pointer"
+                  />
+                  <Input
+                    value={avatarConfig.textColor}
+                    onChange={(e) => setAvatarConfig(prev => ({ 
+                      ...prev, 
+                      textColor: e.target.value 
+                    }))}
+                    placeholder="#ffffff"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              {/* Style Options */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="font-weight">Font Weight</Label>
+                  <Select
+                    value={avatarConfig.fontWeight}
+                    onValueChange={(value) => setAvatarConfig(prev => ({ 
+                      ...prev, 
+                      fontWeight: value 
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="400">Normal</SelectItem>
+                      <SelectItem value="500">Medium</SelectItem>
+                      <SelectItem value="600">Semi Bold</SelectItem>
+                      <SelectItem value="700">Bold</SelectItem>
+                      <SelectItem value="800">Extra Bold</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="border-radius">Shape</Label>
+                  <Select
+                    value={avatarConfig.borderRadius}
+                    onValueChange={(value) => setAvatarConfig(prev => ({ 
+                      ...prev, 
+                      borderRadius: value 
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="50">Circle</SelectItem>
+                      <SelectItem value="12">Rounded Square</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Quick Color Presets */}
+              <div className="space-y-2">
+                <Label>Quick Presets</Label>
+                <div className="flex gap-2 flex-wrap">
+                  {[
+                    { bg: "#3b82f6", text: "#ffffff", name: "Blue" },
+                    { bg: "#ef4444", text: "#ffffff", name: "Red" },
+                    { bg: "#22c55e", text: "#ffffff", name: "Green" },
+                    { bg: "#a855f7", text: "#ffffff", name: "Purple" },
+                    { bg: "#f59e0b", text: "#ffffff", name: "Orange" },
+                    { bg: "#06b6d4", text: "#ffffff", name: "Cyan" },
+                    { bg: "#1f2937", text: "#ffffff", name: "Dark" },
+                    { bg: "#f3f4f6", text: "#1f2937", name: "Light" },
+                  ].map((preset) => (
+                    <button
+                      key={preset.name}
+                      className="w-8 h-8 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform"
+                      style={{ backgroundColor: preset.bg }}
+                      onClick={() => setAvatarConfig(prev => ({
+                        ...prev,
+                        backgroundColor: preset.bg,
+                        textColor: preset.text
+                      }))}
+                      title={preset.name}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowAvatarEditor(false)}
+              disabled={uploadingPhoto}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveCustomAvatar}
+              disabled={uploadingPhoto || !avatarConfig.letter.trim()}
+            >
+              {uploadingPhoto ? "Saving..." : "Save Avatar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </div>

@@ -48,8 +48,9 @@ export default function SellerProfilePage() {
   const [activeTab, setActiveTab] = useState("boxes")
   const [isFollowing, setIsFollowing] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
-  const [donationAmount, setDonationAmount] = useState("")
   const [showDonation, setShowDonation] = useState(false)
+  const [donorEthAddress, setDonorEthAddress] = useState("")
+  const [donationVerifying, setDonationVerifying] = useState(false)
 
   useEffect(() => {
     if (params.username) {
@@ -139,6 +140,8 @@ export default function SellerProfilePage() {
           title: "New Follower",
           message: `${user.fullName} started following you`,
           actionUrl: `/seller/${user.username}`,
+          isRead: false,
+          createdAt: new Date().toISOString(),
         })
       }
     } catch (error) {
@@ -192,6 +195,9 @@ export default function SellerProfilePage() {
         reportedType: "user",
         category: "other",
         description: "Reported via seller profile",
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       })
 
       toast({
@@ -208,58 +214,69 @@ export default function SellerProfilePage() {
     }
   }
 
-  const handleDonation = async () => {
-    if (!user || !seller || !donationAmount) {
+  const handleDonateClick = async () => {
+    if (!user || !seller) {
       toast({
-        title: "Invalid Donation",
-        description: "Please enter a valid donation amount",
+        title: "Authentication Required",
+        description: "Please log in to donate",
         variant: "destructive",
       })
       return
     }
 
-    const amount = Number.parseFloat(donationAmount)
-    if (amount < 1 || amount > 1000) {
+    // Check if seller has ETH address
+    if (!seller.ethAddress) {
       toast({
-        title: "Invalid Amount",
-        description: "Donation amount must be between $1 and $1000",
+        title: "Donations Not Available",
+        description: "This seller hasn't set up their donation address yet",
         variant: "destructive",
       })
       return
     }
 
+    // Check if user has ETH address
+    if (!user.ethAddress) {
+      toast({
+        title: "ETH Address Required",
+        description: "Please add your ETH address in settings before donating",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setDonorEthAddress(user.ethAddress)
+    setShowDonation(true)
+  }
+
+  const handleDonationConfirmation = async () => {
+    if (!user || !seller || !donorEthAddress) return
+
+    setDonationVerifying(true)
     try {
-      // Create donation record
-      await FirebaseService.createDonation({
+      // Start verification process
+      await FirebaseService.verifyEthDonation({
         donorId: user.uid,
         recipientId: seller.uid,
-        amount,
-        message: `Donation to ${seller.fullName}`,
-        type: "seller_support",
-      })
-
-      // Create notification for seller
-      await FirebaseService.createNotification({
-        userId: seller.uid,
-        type: "system",
-        title: "Donation Received",
-        message: `${user.fullName} donated $${amount} to support you!`,
+        donorAddress: donorEthAddress,
+        recipientAddress: seller.ethAddress!,
       })
 
       toast({
-        title: "Donation Sent",
-        description: `Thank you for supporting ${seller.fullName} with $${amount}!`,
+        title: "Verification Started",
+        description: "We're checking for your donation. Both you and the seller will be notified once verified.",
       })
 
-      setDonationAmount("")
       setShowDonation(false)
+      setDonorEthAddress("")
     } catch (error) {
-      console.error("Failed to process donation:", error)
+      console.error("Failed to start donation verification:", error)
       toast({
         title: "Error",
-        description: "Failed to process donation",
+        description: "Failed to start donation verification",
         variant: "destructive",
       })
+    } finally {
+      setDonationVerifying(false)
     }
   }
 
@@ -391,9 +408,9 @@ export default function SellerProfilePage() {
                         <MessageCircle className="h-4 w-4 mr-2" />
                         Message
                       </Button>
-                      <Button variant="outline" onClick={() => setShowDonation(true)}>
+                      <Button variant="outline" onClick={handleDonateClick}>
                         <DollarSign className="h-4 w-4 mr-2" />
-                        Donate
+                        Donate ETH
                       </Button>
                       <Button variant="outline" onClick={handleReport}>
                         <Flag className="h-4 w-4 mr-2" />
@@ -453,38 +470,58 @@ export default function SellerProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Donation Modal */}
+        {/* ETH Donation Modal */}
         {showDonation && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-md mx-4">
+            <Card className="w-full max-w-lg mx-4">
               <CardHeader>
-                <CardTitle>Support {seller.fullName}</CardTitle>
+                <CardTitle>Donate ETH to {seller.fullName}</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Show your appreciation with a donation. 100% goes to the seller.
+                  Send Ethereum directly to support this seller. We'll verify the transaction automatically.
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Donation Amount ($)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="1000"
-                    step="0.01"
-                    value={donationAmount}
-                    onChange={(e) => setDonationAmount(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md"
-                    placeholder="Enter amount"
-                  />
+                <div className="p-4 bg-muted rounded-lg space-y-3">
+                  <h4 className="font-medium">How to donate:</h4>
+                  <ol className="text-sm text-muted-foreground space-y-1">
+                    <li>1. Send ETH from your address to the seller's address below</li>
+                    <li>2. Click "I have donated" when the transaction is sent</li>
+                    <li>3. We'll verify the transaction using Etherscan API</li>
+                    <li>4. Both you and the seller will be notified once verified</li>
+                  </ol>
                 </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Your ETH Address (From):</label>
+                  <div className="p-3 bg-gray-50 rounded-md font-mono text-sm">
+                    {donorEthAddress}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Seller's ETH Address (To):</label>
+                  <div className="p-3 bg-gray-50 rounded-md font-mono text-sm break-all">
+                    {seller.ethAddress}
+                  </div>
+                </div>
+
                 <div className="flex space-x-2">
-                  <Button onClick={handleDonation} className="flex-1 mystery-gradient text-white">
-                    Donate ${donationAmount || "0"}
+                  <Button 
+                    onClick={handleDonationConfirmation} 
+                    disabled={donationVerifying}
+                    className="flex-1 mystery-gradient text-white"
+                  >
+                    {donationVerifying ? "Verifying..." : "I have donated"}
                   </Button>
                   <Button variant="outline" onClick={() => setShowDonation(false)}>
                     Cancel
                   </Button>
                 </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Note: Make sure to send the transaction before clicking "I have donated". 
+                  It may take a few minutes to verify on the blockchain.
+                </p>
               </CardContent>
             </Card>
           </div>

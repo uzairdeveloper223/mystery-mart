@@ -114,6 +114,12 @@ export class FirebaseService {
   // User management
   static async createUser(uid: string, userData: Partial<UserProfile>): Promise<void> {
     const sanitizedData = this.sanitizeObject(userData)
+    
+    // Convert username to lowercase if provided
+    if (sanitizedData.username) {
+      sanitizedData.username = sanitizedData.username.toLowerCase()
+    }
+    
     const userRef = ref(db, `${DB_PATHS.USERS}/${uid}`)
     await set(userRef, {
       ...sanitizedData,
@@ -207,6 +213,12 @@ export class FirebaseService {
 
   static async updateUser(uid: string, updates: Partial<UserProfile>): Promise<void> {
     const sanitizedUpdates = this.sanitizeObject(updates)
+    
+    // Convert username to lowercase if provided
+    if (sanitizedUpdates.username) {
+      sanitizedUpdates.username = sanitizedUpdates.username.toLowerCase()
+    }
+    
     const userRef = ref(db, `${DB_PATHS.USERS}/${uid}`)
     await update(userRef, {
       ...sanitizedUpdates,
@@ -333,14 +345,39 @@ export class FirebaseService {
     return !snapshot.exists()
   }
 
+  static async checkDonationAddressAvailability(address: string, excludeUserId?: string): Promise<boolean> {
+    // Query all users to check if any user already has this donation address
+    const usersRef = ref(db, DB_PATHS.USERS)
+    const snapshot = await get(usersRef)
+    
+    if (!snapshot.exists()) return true
+    
+    const users = snapshot.val()
+    for (const userId in users) {
+      // Skip the current user if provided
+      if (excludeUserId && userId === excludeUserId) {
+        continue
+      }
+      
+      const user = users[userId]
+      if (user.ethAddress && user.ethAddress.toLowerCase() === address.toLowerCase()) {
+        return false
+      }
+    }
+    return true
+  }
+
   static async reserveUsername(username: string, uid: string): Promise<void> {
     const usernameRef = ref(db, `${DB_PATHS.USERNAMES}/${username}`)
     await set(usernameRef, uid)
   }
 
   static async updateUsername(uid: string, oldUsername: string, newUsername: string): Promise<void> {
+    // Convert username to lowercase
+    const lowercaseUsername = newUsername.toLowerCase()
+    
     // Check if new username is available
-    const isAvailable = await this.checkUsernameAvailability(newUsername)
+    const isAvailable = await this.checkUsernameAvailability(lowercaseUsername)
     if (!isAvailable) {
       throw new Error("Username is already taken")
     }
@@ -352,10 +389,33 @@ export class FirebaseService {
     }
 
     // Reserve new username
-    await this.reserveUsername(newUsername, uid)
+    await this.reserveUsername(lowercaseUsername, uid)
 
     // Update user profile with new username
-    await this.updateUser(uid, { username: newUsername })
+    await this.updateUser(uid, { username: lowercaseUsername })
+  }
+
+  static async updateDonationAddress(uid: string, newAddress: string): Promise<void> {
+    // Allow empty address (user wants to remove their address)
+    if (!newAddress || newAddress.trim() === "") {
+      await this.updateUser(uid, { ethAddress: "" })
+      return
+    }
+
+    // First check if user is trying to enter their own address
+    const currentUser = await this.getUser(uid)
+    if (currentUser && currentUser.ethAddress && currentUser.ethAddress.toLowerCase() === newAddress.trim().toLowerCase()) {
+      throw new Error("This is already your current address. Please enter a new one or leave it blank.")
+    }
+
+    // Check if the donation address is available (exclude current user)
+    const isAvailable = await this.checkDonationAddressAvailability(newAddress.trim(), uid)
+    if (!isAvailable) {
+      throw new Error("This donation address is already being used by another user")
+    }
+
+    // Update user profile with new donation address
+    await this.updateUser(uid, { ethAddress: newAddress.trim() })
   }
 
   // Box moderation
@@ -622,6 +682,127 @@ export class FirebaseService {
       type: "system",
       title: "Verification Rejected",
       message: `Your verification request was rejected. Reason: ${notes}`,
+    })
+  }
+
+  // Username change request system
+  static async requestUsernameChange(userId: string, newUsername: string, reason: string): Promise<string> {
+    // Check if the requested username is already taken
+    const isAvailable = await this.checkUsernameAvailability(newUsername)
+    if (!isAvailable) {
+      throw new Error("This username is already taken")
+    }
+
+    // Check if user already has a pending username change request
+    const existingRequestsRef = ref(db, DB_PATHS.USERNAME_CHANGE_REQUESTS)
+    const existingRequestsQuery = query(
+      existingRequestsRef,
+      orderByChild("userId"),
+      equalTo(userId)
+    )
+    const existingRequestsSnapshot = await get(existingRequestsQuery)
+    
+    if (existingRequestsSnapshot.exists()) {
+      const requests = Object.values(existingRequestsSnapshot.val())
+      const pendingRequest = requests.find((req: any) => req.status === "pending")
+      if (pendingRequest) {
+        throw new Error("You already have a pending username change request")
+      }
+    }
+
+    // Get current user data to include current username
+    const user = await this.getUser(userId)
+    const currentUsername = user?.username || ""
+
+    const requestsRef = ref(db, DB_PATHS.USERNAME_CHANGE_REQUESTS)
+    const newRequestRef = push(requestsRef)
+    const requestId = newRequestRef.key!
+
+    await set(newRequestRef, {
+      id: requestId,
+      userId,
+      currentUsername,
+      requestedUsername: newUsername.toLowerCase(),
+      reason: this.sanitizeInput(reason),
+      status: "pending",
+      requestedAt: new Date().toISOString(),
+      reviewedAt: null,
+      reviewedBy: null,
+      adminNotes: "",
+    })
+
+    return requestId
+  }
+
+  static async getUsernameChangeRequests(status?: string): Promise<any[]> {
+    let requestsQuery = query(ref(db, DB_PATHS.USERNAME_CHANGE_REQUESTS))
+
+    if (status) {
+      requestsQuery = query(ref(db, DB_PATHS.USERNAME_CHANGE_REQUESTS), orderByChild("status"), equalTo(status))
+    }
+
+    const snapshot = await get(requestsQuery)
+    if (!snapshot.exists()) return []
+
+    return Object.values(snapshot.val())
+  }
+
+  static async approveUsernameChangeRequest(requestId: string, adminId: string): Promise<void> {
+    const requestRef = ref(db, `${DB_PATHS.USERNAME_CHANGE_REQUESTS}/${requestId}`)
+    const request = await get(requestRef)
+
+    if (!request.exists()) throw new Error("Username change request not found")
+
+    const requestData = request.val()
+
+    // Check if username is still available
+    const isAvailable = await this.checkUsernameAvailability(requestData.requestedUsername)
+    if (!isAvailable) {
+      throw new Error("Username is no longer available")
+    }
+
+    // Update the username change request
+    await update(requestRef, {
+      status: "approved",
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: adminId,
+    })
+
+    // Update the user's username
+    await this.updateUser(requestData.userId, {
+      username: requestData.requestedUsername,
+    })
+
+    // Create notification
+    await this.createNotification({
+      userId: requestData.userId,
+      type: "system",
+      title: "Username Changed",
+      message: `Your username has been changed to @${requestData.requestedUsername}`,
+    })
+  }
+
+  static async rejectUsernameChangeRequest(requestId: string, adminId: string, notes: string): Promise<void> {
+    const requestRef = ref(db, `${DB_PATHS.USERNAME_CHANGE_REQUESTS}/${requestId}`)
+    const request = await get(requestRef)
+
+    if (!request.exists()) throw new Error("Username change request not found")
+
+    const requestData = request.val()
+
+    await update(requestRef, {
+      status: "rejected",
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: adminId,
+      adminNotes: this.sanitizeInput(notes),
+    })
+
+    // Create notification
+    await this.createNotification({
+      userId: requestData.userId,
+      type: "system",
+      title: "Username Change Request Rejected",
+      message: `Your username change request was rejected. Reason: ${notes}`,
     })
   }
 
@@ -1109,23 +1290,81 @@ export class FirebaseService {
     }
   }
 
+  static async markConversationAsRead(conversationId: string, userId: string): Promise<void> {
+    const messagesRef = ref(db, DB_PATHS.MESSAGES)
+    const messagesQuery = query(messagesRef, orderByChild("conversationId"), equalTo(conversationId))
+    const messagesSnapshot = await get(messagesQuery)
+    
+    if (messagesSnapshot.exists()) {
+      const messages = Object.entries(messagesSnapshot.val()) as [string, Message][]
+      const updates: { [key: string]: any } = {}
+      
+      messages.forEach(([messageId, message]) => {
+        if (message.senderId !== userId) {
+          const readBy = message.readBy || []
+          if (!readBy.includes(userId)) {
+            readBy.push(userId)
+            updates[`${DB_PATHS.MESSAGES}/${messageId}/readBy`] = readBy
+            updates[`${DB_PATHS.MESSAGES}/${messageId}/status`] = "read"
+          }
+        }
+      })
+      
+      if (Object.keys(updates).length > 0) {
+        await update(ref(db), updates)
+      }
+    }
+  }
+
   static subscribeToUserConversations(userId: string, callback: (conversations: any[]) => void): () => void {
     const conversationsRef = ref(db, DB_PATHS.CONVERSATIONS)
+    const messagesRef = ref(db, DB_PATHS.MESSAGES)
     
-    const unsubscribe = onValue(conversationsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const allConversations = Object.values(snapshot.val()) as any[]
-        // Filter conversations on the client side to avoid indexing issues
-        const userConversations = allConversations.filter(conv => 
-          conv.participants && conv.participants[userId] === true
-        )
-        callback(userConversations)
-      } else {
-        callback([])
+    let messagesUnsubscribe: (() => void) | null = null
+    
+    // Subscribe to both conversations and messages to get real-time updates
+    const conversationsUnsubscribe = onValue(conversationsRef, (snapshot) => {
+      const conversationsData = snapshot.exists() ? Object.values(snapshot.val()) as any[] : []
+      const userConversations = conversationsData.filter(conv => 
+        conv.participants && conv.participants[userId] === true
+      )
+      
+      // Unsubscribe from previous messages listener if it exists
+      if (messagesUnsubscribe) {
+        messagesUnsubscribe()
       }
+      
+      // Subscribe to messages to calculate unread counts
+      messagesUnsubscribe = onValue(messagesRef, (messagesSnapshot) => {
+        const messagesData = messagesSnapshot.exists() ? Object.values(messagesSnapshot.val()) as Message[] : []
+        
+        const conversationsWithUnread = userConversations.map((conversation) => {
+          // Filter messages for this conversation
+          const conversationMessages = messagesData.filter(msg => msg.conversationId === conversation.id)
+          
+          // Count unread messages for current user
+          const unreadCount = conversationMessages.filter(msg => 
+            msg.senderId !== userId && 
+            (!msg.readBy || !msg.readBy.includes(userId))
+          ).length
+          
+          return {
+            ...conversation,
+            unreadCount
+          }
+        })
+        
+        callback(conversationsWithUnread)
+      })
     })
     
-    return unsubscribe
+    return () => {
+      conversationsUnsubscribe()
+      // Also unsubscribe from messages if it exists
+      if (messagesUnsubscribe) {
+        messagesUnsubscribe()
+      }
+    }
   }
 
   static subscribeToConversationMessages(conversationId: string, callback: (messages: Message[]) => void): () => void {
@@ -1149,6 +1388,27 @@ export class FirebaseService {
     })
     
     return unsubscribe
+  }
+
+  static async setUserOnline(userId: string): Promise<void> {
+    const userOnlineRef = ref(db, `onlineUsers/${userId}`)
+    await set(userOnlineRef, {
+      lastSeen: new Date().toISOString(),
+      status: "online"
+    })
+  }
+
+  static async setUserOffline(userId: string): Promise<void> {
+    const userOnlineRef = ref(db, `onlineUsers/${userId}`)
+    await update(userOnlineRef, {
+      lastSeen: new Date().toISOString(),
+      status: "offline"
+    })
+  }
+
+  static async removeUserFromOnline(userId: string): Promise<void> {
+    const userOnlineRef = ref(db, `onlineUsers/${userId}`)
+    await remove(userOnlineRef)
   }
 
   static subscribeToTypingIndicators(conversationId: string, callback: (typingUserIds: string[]) => void): () => void {
@@ -1732,6 +1992,165 @@ export class FirebaseService {
       bannedUsers: usersData.filter((user) => user.isBanned).length,
       activeBoxes: boxesData.filter((box) => box.status === "active").length,
       pendingBoxes: boxesData.filter((box) => box.status === "pending").length,
+    }
+  }
+
+  // ETH Donation Verification Methods
+  static async verifyEthDonation(donationRequest: {
+    donorId: string
+    recipientId: string
+    donorAddress: string
+    recipientAddress: string
+  }) {
+    const donationId = push(ref(db, DB_PATHS.DONATION_VERIFICATIONS)).key!
+    
+    await set(ref(db, `${DB_PATHS.DONATION_VERIFICATIONS}/${donationId}`), {
+      id: donationId,
+      ...donationRequest,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      verifiedAt: null,
+      amount: null,
+      transactionHash: null,
+    })
+
+    // Start background verification process
+    try {
+      await this.checkEtherscanForDonation(donationId, donationRequest)
+    } catch (error) {
+      console.error("Failed to start donation verification:", error)
+    }
+
+    return donationId
+  }
+
+  private static async checkEtherscanForDonation(
+    donationId: string,
+    donationRequest: {
+      donorId: string
+      recipientId: string
+      donorAddress: string
+      recipientAddress: string
+    }
+  ) {
+    try {
+      // Etherscan API call to check for recent transactions
+      const response = await fetch(
+        `https://api.etherscan.io/api?module=account&action=txlist&address=${donationRequest.donorAddress}&startblock=0&endblock=99999999&page=1&offset=10&sort=desc&apikey=Q2A3ZJI7W1ACP43EMVC11GE6SH5TU53R6G`
+      )
+      
+      const data = await response.json()
+      
+      if (data.status === "1" && data.result) {
+        // Look for transactions from donor to recipient in the last hour
+        const oneHourAgo = new Date().getTime() - (60 * 60 * 1000)
+        
+        for (const tx of data.result) {
+          const txTimestamp = parseInt(tx.timeStamp) * 1000
+          
+          if (
+            txTimestamp > oneHourAgo &&
+            tx.to?.toLowerCase() === donationRequest.recipientAddress.toLowerCase() &&
+            tx.from?.toLowerCase() === donationRequest.donorAddress.toLowerCase() &&
+            parseFloat(tx.value) > 0
+          ) {
+            // Found a matching transaction!
+            const amountEth = parseFloat(tx.value) / Math.pow(10, 18) // Convert from Wei to ETH
+            
+            await this.confirmDonation(donationId, {
+              amount: amountEth,
+              transactionHash: tx.hash,
+              blockNumber: tx.blockNumber,
+              gasUsed: tx.gasUsed,
+            })
+            
+            return
+          }
+        }
+      }
+      
+      // If no transaction found, mark as failed after some time
+      setTimeout(async () => {
+        await this.markDonationFailed(donationId)
+      }, 30 * 60 * 1000) // 30 minutes timeout
+      
+    } catch (error) {
+      console.error("Etherscan API error:", error)
+      await this.markDonationFailed(donationId)
+    }
+  }
+
+  private static async confirmDonation(
+    donationId: string,
+    transactionDetails: {
+      amount: number
+      transactionHash: string
+      blockNumber: string
+      gasUsed: string
+    }
+  ) {
+    // Update donation verification record
+    await update(ref(db, `${DB_PATHS.DONATION_VERIFICATIONS}/${donationId}`), {
+      status: "verified",
+      verifiedAt: new Date().toISOString(),
+      ...transactionDetails,
+    })
+
+    // Get the donation request details
+    const donationSnapshot = await get(ref(db, `${DB_PATHS.DONATION_VERIFICATIONS}/${donationId}`))
+    const donation = donationSnapshot.val()
+
+    if (donation) {
+      // Create notifications for both donor and recipient
+      await Promise.all([
+        this.createNotification({
+          userId: donation.donorId,
+          type: "system",
+          title: "Donation Verified",
+          message: `Your donation of ${transactionDetails.amount.toFixed(4)} ETH has been verified and sent successfully!`,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+        }),
+        this.createNotification({
+          userId: donation.recipientId,
+          type: "system",
+          title: "Donation Received",
+          message: `You received a donation of ${transactionDetails.amount.toFixed(4)} ETH! Transaction: ${transactionDetails.transactionHash}`,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+        }),
+      ])
+
+      // Record the successful donation
+      await this.createDonation({
+        donorId: donation.donorId,
+        recipientId: donation.recipientId,
+        amount: transactionDetails.amount,
+        message: `ETH donation verified via blockchain - ${transactionDetails.transactionHash}`,
+        type: "eth_donation",
+      })
+    }
+  }
+
+  private static async markDonationFailed(donationId: string) {
+    await update(ref(db, `${DB_PATHS.DONATION_VERIFICATIONS}/${donationId}`), {
+      status: "failed",
+      verifiedAt: new Date().toISOString(),
+    })
+
+    // Get the donation request details and notify donor
+    const donationSnapshot = await get(ref(db, `${DB_PATHS.DONATION_VERIFICATIONS}/${donationId}`))
+    const donation = donationSnapshot.val()
+
+    if (donation) {
+      await this.createNotification({
+        userId: donation.donorId,
+        type: "system",
+        title: "Donation Not Found",
+        message: "We couldn't find your donation transaction. Please make sure you sent the transaction and try again.",
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      })
     }
   }
 }

@@ -48,6 +48,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const userProfile = await FirebaseService.getUser(firebaseUser.uid)
           if (userProfile) {
             setUser(userProfile)
+            // Set user online when authenticated
+            await FirebaseService.setUserOnline(firebaseUser.uid)
           } else {
             console.warn("User profile not found in database, this should not happen during normal registration")
             setUser(null)
@@ -64,6 +66,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return unsubscribe
   }, [])
+
+  // Set up presence management
+  useEffect(() => {
+    if (!firebaseUser) return
+
+    // Set user offline when page unloads
+    const handleBeforeUnload = () => {
+      // Try to set user offline (might not always work during page unload)
+      FirebaseService.setUserOffline(firebaseUser.uid).catch(() => {
+        // Ignore errors during page unload
+      })
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        FirebaseService.setUserOffline(firebaseUser.uid).catch(() => {
+          // Ignore errors
+        })
+      } else {
+        FirebaseService.setUserOnline(firebaseUser.uid).catch(() => {
+          // Ignore errors
+        })
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [firebaseUser])
 
   const login = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password)
@@ -142,6 +177,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logout = async () => {
+    if (firebaseUser) {
+      // Set user offline before logging out
+      await FirebaseService.setUserOffline(firebaseUser.uid)
+    }
     await signOut(auth)
   }
 

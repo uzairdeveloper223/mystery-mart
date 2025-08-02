@@ -38,6 +38,7 @@ import { FirebaseService } from "@/lib/firebase-service"
 import { useToast } from "@/hooks/use-toast"
 import type {
   VerificationRequest,
+  UsernameChangeRequest,
   Report,
   SellerApplication,
   AdminMessage,
@@ -73,6 +74,7 @@ export default function AdminPage() {
   const [reportActions, setReportActions] = useState<{ [key: string]: { investigating: boolean, actionTaken: boolean } }>({})
 
   const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>([])
+  const [usernameChangeRequests, setUsernameChangeRequests] = useState<UsernameChangeRequest[]>([])
   const [sellerApplications, setSellerApplications] = useState<SellerApplication[]>([])
   const [reports, setReports] = useState<Report[]>([])
   const [adminMessages, setAdminMessages] = useState<AdminMessage[]>([])
@@ -114,6 +116,7 @@ export default function AdminPage() {
       const [
         platformStats,
         pendingVerifications,
+        pendingUsernameChanges,
         pendingSellerApps,
         activeReports,
         pendingMessages,
@@ -128,6 +131,7 @@ export default function AdminPage() {
       ] = await Promise.all([
         FirebaseService.getPlatformStats(),
         FirebaseService.getVerificationRequests("pending"),
+        FirebaseService.getUsernameChangeRequests("pending"),
         FirebaseService.getSellerApplications("pending"),
         FirebaseService.getReports("pending"),
         FirebaseService.getAdminMessages("open"),
@@ -164,6 +168,7 @@ export default function AdminPage() {
         bothUsers: bothUsers?.length || 0,
       })
       setVerificationRequests(pendingVerifications || [])
+      setUsernameChangeRequests(pendingUsernameChanges || [])
       setSellerApplications(pendingSellerApps || [])
       setReports(activeReports || [])
       setAdminMessages(pendingMessages || [])
@@ -244,6 +249,33 @@ export default function AdminPage() {
       toast({
         title: "Error",
         description: "Failed to process verification request",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleUsernameChangeAction = async (requestId: string, action: "approved" | "rejected", notes?: string) => {
+    setActionLoading(requestId)
+    try {
+      if (action === "approved") {
+        await FirebaseService.approveUsernameChangeRequest(requestId, user!.uid)
+      } else {
+        await FirebaseService.rejectUsernameChangeRequest(requestId, user!.uid, notes || "Username change rejected")
+      }
+
+      toast({
+        title: "Success",
+        description: `Username change request ${action}`,
+      })
+
+      await fetchAdminData()
+    } catch (error) {
+      console.error("Failed to process username change:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to process username change request",
         variant: "destructive",
       })
     } finally {
@@ -678,10 +710,11 @@ export default function AdminPage() {
 
         {/* Admin Tabs */}
         <Tabs defaultValue="platform-settings" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-11">
+          <TabsList className="grid w-full grid-cols-12">
             <TabsTrigger value="platform-settings">Settings</TabsTrigger>
             <TabsTrigger value="seller-applications">Sellers ({sellerApplications?.length || 0})</TabsTrigger>
             <TabsTrigger value="verifications">Verify ({verificationRequests?.length || 0})</TabsTrigger>
+            <TabsTrigger value="username-changes">Usernames ({usernameChangeRequests?.length || 0})</TabsTrigger>
             <TabsTrigger value="box-moderation">Pending ({stats.pendingBoxes})</TabsTrigger>
             <TabsTrigger value="approved-boxes">Active ({approvedBoxes?.length || 0})</TabsTrigger>
             <TabsTrigger value="user-management">Users</TabsTrigger>
@@ -998,6 +1031,88 @@ export default function AdminPage() {
                   ) : (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground">No pending verification requests</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="username-changes">
+            <Card>
+              <CardHeader>
+                <CardTitle>Username Change Requests</CardTitle>
+                <CardDescription>Review and approve username change requests</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {usernameChangeRequests && usernameChangeRequests.length > 0 ? (
+                    usernameChangeRequests.map((request) => (
+                      <div key={request.id} className="border rounded-lg p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="font-semibold">Username Change Request #{request.id.slice(-8)}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Requested: {new Date(request.requestedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge variant="secondary">{request.status}</Badge>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <p className="text-sm font-medium mb-1">Current Username:</p>
+                            <p className="text-sm bg-muted p-2 rounded">@{request.currentUsername}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium mb-1">Requested Username:</p>
+                            <p className="text-sm bg-muted p-2 rounded">@{request.newUsername}</p>
+                          </div>
+                        </div>
+
+                        <div className="mb-4">
+                          <p className="text-sm font-medium mb-2">Reason for Change:</p>
+                          <p className="text-sm text-muted-foreground bg-muted p-3 rounded">{request.reason}</p>
+                        </div>
+
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleUsernameChangeAction(request.id, "approved")}
+                            disabled={actionLoading === request.id}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve Change
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              const notes = prompt("Reason for rejection:")
+                              if (notes) {
+                                handleUsernameChangeAction(request.id, "rejected", notes)
+                              }
+                            }}
+                            disabled={actionLoading === request.id}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => router.push(`/messages?user=${request.userId}`)}
+                          >
+                            <MessageCircle className="h-4 w-4 mr-1" />
+                            Message User
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No pending username change requests</p>
                     </div>
                   )}
                 </div>

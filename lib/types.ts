@@ -40,6 +40,7 @@ export interface UserProfile {
     fulfillmentRate: number
     returnRate: number
   }
+  ethAddress?: string
 }
 
 export interface MysteryBox {
@@ -238,6 +239,19 @@ export interface VerificationRequest {
   reviewedBy?: string
   adminNotes?: string
   adminMessageId?: string
+}
+
+export interface UsernameChangeRequest {
+  id: string
+  userId: string
+  currentUsername: string
+  newUsername: string
+  reason: string
+  status: "pending" | "approved" | "rejected"
+  requestedAt: string
+  reviewedAt?: string
+  reviewedBy?: string
+  adminNotes?: string
 }
 
 export interface PlatformSettings {

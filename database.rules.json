@@ -47,6 +47,9 @@
     },
     "comments": {
       ".indexOn": ["boxId", "userId", "createdAt"]
+    },
+    "username_change_requests": {
+      ".indexOn": ["userId", "status", "createdAt"]
     }
   }
 }

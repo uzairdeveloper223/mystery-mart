@@ -112,13 +112,16 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!activeConversation || !user) return
 
+    // Mark conversation as read when opened
+    FirebaseService.markConversationAsRead(activeConversation.id, user.uid)
+
     // Subscribe to real-time messages for active conversation
     const unsubscribeMessages = FirebaseService.subscribeToConversationMessages(
       activeConversation.id,
       (fetchedMessages) => {
         setMessages(fetchedMessages)
 
-        // Mark messages as read
+        // Mark new messages as read
         const unreadMessages = fetchedMessages.filter(
           (msg) => msg.senderId !== user.uid && !msg.readBy?.includes(user.uid),
         )

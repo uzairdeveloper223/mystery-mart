@@ -93,8 +93,13 @@ export function UsernamePrompt() {
               disabled={isUpdating}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              3-20 characters, letters, numbers, and underscores only
+              3-20 characters, letters, numbers, and underscores only. Uppercase letters will be converted to lowercase.
             </p>
+            {newUsername && newUsername !== newUsername.toLowerCase() && (
+              <p className="text-xs text-blue-600 mt-1">
+                Will be saved as: <code className="bg-blue-100 px-1 rounded">{newUsername.toLowerCase()}</code>
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             <Button

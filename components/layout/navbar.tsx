@@ -8,6 +8,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { motion } from "framer-motion"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useNotifications } from "@/hooks/use-notifications"
+import { useMessages } from "@/hooks/use-messages"
 import { useCart } from "@/hooks/use-cart"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { Button } from "@/components/ui/button"
@@ -42,6 +43,7 @@ import {
 export function Navbar() {
   const { user, logout } = useAuth()
   const { notifications, unreadCount } = useNotifications()
+  const { unreadMessageCount } = useMessages()
   const { totalItems } = useCart()
   const router = useRouter()
   const pathname = usePathname()
@@ -177,8 +179,15 @@ export function Navbar() {
 
                 {/* Messages */}
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button variant="ghost" size="icon" onClick={() => router.push("/messages")}>
+                  <Button variant="ghost" size="icon" className="relative" onClick={() => router.push("/messages")}>
                     <MessageCircle className="h-5 w-5" />
+                    {unreadMessageCount > 0 && (
+                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1">
+                        <Badge variant="destructive" className="text-xs px-1 min-w-[1.25rem] h-5">
+                          {unreadMessageCount}
+                        </Badge>
+                      </motion.div>
+                    )}
                   </Button>
                 </motion.div>
 
@@ -392,7 +401,7 @@ export function Navbar() {
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           <MessageCircle className="h-4 w-4" />
-                          <span>Messages</span>
+                          <span>Messages {unreadMessageCount > 0 && `(${unreadMessageCount})`}</span>
                         </Link>
                         <Link
                           href="/notifications"
