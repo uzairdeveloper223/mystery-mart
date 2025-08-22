@@ -76,7 +76,6 @@ export default function LinkFiregramPage() {
     try {
       // Get the user's ID token
       const idToken = await user.getIdToken()
-
       const response = await fetch('https://firegram-social-app.vercel.app/api/complete-linking', {
         method: 'POST',
         headers: {
