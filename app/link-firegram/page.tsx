@@ -74,7 +74,7 @@ export default function LinkFiregramPage() {
     setMessage('')
 
     try {
-      const response = await fetch('https://firegram-app.vercel.app/api/complete-linking', {
+      const response = await fetch('https://firegram-social-app.vercel.app/api/complete-linking', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
