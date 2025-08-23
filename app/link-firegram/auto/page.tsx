@@ -88,7 +88,7 @@ export default function AutoLinkFiregramPage() {
           secureToken: token,
           requestId: requestId,
           mysteryMartUid: user.uid,
-          mysteryMartToken: idToken
+          mysteryMartToken: idToken || null
         })
       })
 
@@ -104,7 +104,18 @@ export default function AutoLinkFiregramPage() {
         }, 4000)
       } else {
         setStatus('error')
-        setMessage(data.error || 'Failed to link accounts automatically')
+        let errorMessage = data.error || 'Failed to link accounts automatically'
+        
+        // Provide more helpful error messages
+        if (errorMessage.includes('expired')) {
+          errorMessage = 'The linking request has expired. Please generate a new link from Firegram.'
+        } else if (errorMessage.includes('not found')) {
+          errorMessage = 'Linking request not found. Please generate a new link from Firegram.'
+        } else if (errorMessage.includes('authentication')) {
+          errorMessage = 'Authentication issue. Please try the manual code method instead.'
+        }
+        
+        setMessage(errorMessage)
       }
     } catch (error) {
       console.error('Error auto-linking accounts:', error)
@@ -234,23 +245,35 @@ export default function AutoLinkFiregramPage() {
 
           <div className="space-y-3">
             {status === 'error' && (
-              <Button
-                onClick={handleManualRetry}
-                disabled={linking}
-                className="w-full"
-              >
-                {linking ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Retrying...
-                  </>
-                ) : (
-                  <>
-                    <Link className="w-4 h-4 mr-2" />
-                    Retry Linking
-                  </>
-                )}
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  onClick={handleManualRetry}
+                  disabled={linking}
+                  className="w-full"
+                >
+                  {linking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Retrying...
+                    </>
+                  ) : (
+                    <>
+                      <Link className="w-4 h-4 mr-2" />
+                      Retry Auto-Link
+                    </>
+                  )}
+                </Button>
+                
+                <Button
+                  onClick={() => router.push('/link-firegram')}
+                  variant="outline"
+                  className="w-full"
+                  disabled={linking}
+                >
+                  <Link className="w-4 h-4 mr-2" />
+                  Try Manual Code Method
+                </Button>
+              </div>
             )}
 
             {status === 'success' && (

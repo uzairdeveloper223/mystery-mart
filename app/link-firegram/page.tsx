@@ -79,13 +79,13 @@ export default function LinkFiregramPage() {
       const response = await fetch('https://firegram-social-app.vercel.app/api/complete-linking', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           requestId,
           linkingCode: linkingCode.trim().toUpperCase(),
-          mysteryMartUid: user.uid
+          mysteryMartUid: user.uid,
+          mysteryMartToken: idToken || null
         })
       })
 
