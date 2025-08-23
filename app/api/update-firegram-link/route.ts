@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/firebase'
-import { ref, get, set } from 'firebase/database'
+import admin from '@/lib/firebase-admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,9 +12,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get Mystery Mart user data
-    const userRef = ref(db, `users/${mysteryMartUid}`)
-    const userSnapshot = await get(userRef)
+    // Get Mystery Mart user data using Firebase Admin
+    const db = admin.database()
+    const userRef = db.ref(`users/${mysteryMartUid}`)
+    const userSnapshot = await userRef.once('value')
 
     if (!userSnapshot.exists()) {
       return NextResponse.json(
@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
 
     const userData = userSnapshot.val()
 
-    // Update user profile with Firegram linking information
-    await set(userRef, {
+    // Update user profile with Firegram linking information using Firebase Admin
+    await userRef.set({
       ...userData,
       firegramLinked: true,
       firegramUsername: firegramData.username,
