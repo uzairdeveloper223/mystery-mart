@@ -3,27 +3,26 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, CheckCircle, XCircle, Link, ArrowLeft, Shield, Info } from 'lucide-react'
+import { Loader2, CheckCircle, XCircle, Link, ArrowLeft, Shield } from 'lucide-react'
 import { auth, db } from '@/lib/firebase'
 import { ref, get } from 'firebase/database'
 import { onAuthStateChanged, User } from 'firebase/auth'
 
-export default function LinkFiregramPage() {
+export default function AutoLinkFiregramPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const token = searchParams.get('token')
   const requestId = searchParams.get('requestId')
 
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [linking, setLinking] = useState(false)
-  const [linkingCode, setLinkingCode] = useState('')
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
   const [businessData, setBusinessData] = useState<any>(null)
+  const [autoLinkAttempted, setAutoLinkAttempted] = useState(false)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -35,10 +34,14 @@ export default function LinkFiregramPage() {
   }, [])
 
   useEffect(() => {
-    if (user && requestId) {
+    if (user && token && requestId && !autoLinkAttempted) {
       loadBusinessData()
+      // Automatically attempt linking after a short delay
+      setTimeout(() => {
+        handleAutoLinking()
+      }, 1500)
     }
-  }, [user, requestId])
+  }, [user, token, requestId, autoLinkAttempted])
 
   const loadBusinessData = async () => {
     if (!user) return
@@ -62,13 +65,12 @@ export default function LinkFiregramPage() {
     }
   }
 
-  const handleLinking = async () => {
-    if (!user || !requestId || !linkingCode.trim()) {
-      setStatus('error')
-      setMessage('Please enter the linking code')
+  const handleAutoLinking = async () => {
+    if (!user || !token || !requestId || autoLinkAttempted) {
       return
     }
 
+    setAutoLinkAttempted(true)
     setLinking(true)
     setStatus('idle')
     setMessage('')
@@ -76,16 +78,17 @@ export default function LinkFiregramPage() {
     try {
       // Get the user's ID token
       const idToken = await user.getIdToken()
-      const response = await fetch('https://firegram-social-app.vercel.app/api/complete-linking', {
+      
+      const response = await fetch('https://firegram-social-app.vercel.app/api/auto-complete-linking', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
-          requestId,
-          linkingCode: linkingCode.trim().toUpperCase(),
-          mysteryMartUid: user.uid
+          secureToken: token,
+          requestId: requestId,
+          mysteryMartUid: user.uid,
+          mysteryMartToken: idToken
         })
       })
 
@@ -93,23 +96,30 @@ export default function LinkFiregramPage() {
 
       if (response.ok && data.success) {
         setStatus('success')
-        setMessage('Your accounts have been linked successfully!')
+        setMessage('Your accounts have been linked successfully! You can now showcase your MysteryMart business on Firegram.')
 
-        // Redirect to dashboard after 3 seconds
+        // Redirect to dashboard after 4 seconds
         setTimeout(() => {
           router.push('/dashboard')
-        }, 3000)
+        }, 4000)
       } else {
         setStatus('error')
-        setMessage(data.error || 'Failed to link accounts')
+        setMessage(data.error || 'Failed to link accounts automatically')
       }
     } catch (error) {
-      console.error('Error linking accounts:', error)
+      console.error('Error auto-linking accounts:', error)
       setStatus('error')
-      setMessage('Network error. Please try again.')
+      setMessage('Network error occurred during automatic linking. Please try again.')
     } finally {
       setLinking(false)
     }
+  }
+
+  const handleManualRetry = () => {
+    setAutoLinkAttempted(false)
+    setStatus('idle')
+    setMessage('')
+    handleAutoLinking()
   }
 
   if (loading) {
@@ -146,14 +156,14 @@ export default function LinkFiregramPage() {
     )
   }
 
-  if (!requestId) {
+  if (!token || !requestId) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-red-600">Invalid Link</CardTitle>
             <CardDescription>
-              This linking link is invalid or expired
+              This linking link is invalid or missing required parameters
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -174,22 +184,15 @@ export default function LinkFiregramPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="flex items-center justify-center text-blue-600">
-            <Link className="w-5 h-5 mr-2" />
-            Link Your Firegram Account
+            <Shield className="w-5 h-5 mr-2" />
+            Secure Account Linking
           </CardTitle>
           <CardDescription>
-            Complete the connection between your MysteryMart and Firegram accounts
+            Automatically connecting your MysteryMart and Firegram accounts
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* New Automatic Linking Notice */}
-          <Alert className="border-green-200 bg-green-50">
-            <Shield className="w-4 h-4 text-green-600" />
-            <AlertDescription className="text-green-800">
-              <strong>New!</strong> For easier linking, use the "One-Click Link" option in Firegram instead of entering codes manually.
-            </AlertDescription>
-          </Alert>
           {businessData && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="font-medium text-blue-900 mb-2">Business Information</h4>
@@ -203,21 +206,13 @@ export default function LinkFiregramPage() {
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="linkingCode">Enter Linking Code</Label>
-            <Input
-              id="linkingCode"
-              value={linkingCode}
-              onChange={(e) => setLinkingCode(e.target.value.toUpperCase())}
-              placeholder="Enter the 6-digit code from Firegram"
-              maxLength={6}
-              className="text-center text-lg font-mono tracking-wider"
-              disabled={linking}
-            />
-            <p className="text-xs text-gray-500 text-center">
-              Enter the code you received in Firegram
-            </p>
-          </div>
+          {linking && (
+            <div className="text-center py-6">
+              <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-600" />
+              <p className="text-lg font-medium">Linking your accounts...</p>
+              <p className="text-sm text-gray-600 mt-2">This will only take a moment</p>
+            </div>
+          )}
 
           {status === 'success' && (
             <Alert className="border-green-200 bg-green-50">
@@ -238,32 +233,46 @@ export default function LinkFiregramPage() {
           )}
 
           <div className="space-y-3">
-            <Button
-              onClick={handleLinking}
-              disabled={linking || linkingCode.length !== 6}
-              className="w-full"
-            >
-              {linking ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Linking Accounts...
-                </>
-              ) : (
-                <>
-                  <Link className="w-4 h-4 mr-2" />
-                  Complete Linking
-                </>
-              )}
-            </Button>
+            {status === 'error' && (
+              <Button
+                onClick={handleManualRetry}
+                disabled={linking}
+                className="w-full"
+              >
+                {linking ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Retrying...
+                  </>
+                ) : (
+                  <>
+                    <Link className="w-4 h-4 mr-2" />
+                    Retry Linking
+                  </>
+                )}
+              </Button>
+            )}
+
+            {status === 'success' && (
+              <div className="text-center text-sm text-gray-600">
+                Redirecting to dashboard in a few seconds...
+              </div>
+            )}
 
             <Button
               onClick={() => router.push('/dashboard')}
               variant="outline"
               className="w-full"
+              disabled={linking}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Button>
+          </div>
+
+          <div className="text-xs text-gray-500 text-center">
+            <Shield className="w-3 h-3 inline mr-1" />
+            Secure linking powered by encrypted tokens
           </div>
         </CardContent>
       </Card>
