@@ -408,6 +408,22 @@ export default function SellerProfilePage() {
                         <MessageCircle className="h-4 w-4 mr-2" />
                         Message
                       </Button>
+                      {seller.firegramLinked && seller.firegramUsername && (
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 hover:from-blue-600 hover:to-purple-700"
+                        >
+                          <a
+                            href={`https://firegram-social-app.vercel.app/profile/${seller.firegramUsername}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Users className="h-4 w-4 mr-2" />
+                            View on Firegram
+                          </a>
+                        </Button>
+                      )}
                       <Button variant="outline" onClick={handleDonateClick}>
                         <DollarSign className="h-4 w-4 mr-2" />
                         Donate ETH

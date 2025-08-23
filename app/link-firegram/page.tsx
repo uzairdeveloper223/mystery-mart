@@ -93,12 +93,12 @@ export default function LinkFiregramPage() {
 
       if (response.ok && data.success) {
         setStatus('success')
-        setMessage('Your accounts have been linked successfully!')
+        setMessage('Your accounts have been linked successfully! Redirecting to Firegram...')
 
-        // Redirect to dashboard after 3 seconds
+        // Redirect to Firegram completion page after 2 seconds
         setTimeout(() => {
-          router.push('/dashboard')
-        }, 3000)
+          window.location.href = `https://firegram-social-app.vercel.app/linking-complete?success=true&mysteryMartUid=${user.uid}`
+        }, 2000)
       } else {
         setStatus('error')
         setMessage(data.error || 'Failed to link accounts')

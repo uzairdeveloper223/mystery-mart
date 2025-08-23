@@ -96,12 +96,12 @@ export default function AutoLinkFiregramPage() {
 
       if (response.ok && data.success) {
         setStatus('success')
-        setMessage('Your accounts have been linked successfully! You can now showcase your MysteryMart business on Firegram.')
+        setMessage('Your accounts have been linked successfully! Redirecting to Firegram...')
 
-        // Redirect to dashboard after 4 seconds
+        // Redirect to Firegram completion page after 2 seconds
         setTimeout(() => {
-          router.push('/dashboard')
-        }, 4000)
+          window.location.href = `https://firegram-social-app.vercel.app/linking-complete?success=true&mysteryMartUid=${user.uid}`
+        }, 2000)
       } else {
         setStatus('error')
         let errorMessage = data.error || 'Failed to link accounts automatically'

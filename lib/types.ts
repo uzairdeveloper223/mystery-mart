@@ -41,6 +41,16 @@ export interface UserProfile {
     returnRate: number
   }
   ethAddress?: string
+  firegramLinked?: boolean
+  firegramUsername?: string
+  firegramData?: {
+    uid: string
+    username: string
+    fullName: string
+    profilePicture?: string
+    isVerified?: boolean
+    linkedAt: number
+  }
 }
 
 export interface MysteryBox {
