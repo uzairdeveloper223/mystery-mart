@@ -1,0 +1,655 @@
+# MysteryMart Application Documentation
+# Complete list of all pages, functions, and features
+
+## MAIN APPLICATION STRUCTURE
+
+### Root Layout (app/layout.tsx)
+- **Purpose**: Main application wrapper with providers and global components
+- **Functions**:
+  - ThemeProvider: Handles dark/light theme switching
+  - AuthProvider: Manages user authentication state
+  - CartProvider: Manages shopping cart state
+  - WishlistProvider: Manages user wishlist state
+  - MaintenanceCheck: Checks if app is in maintenance mode
+  - Toaster: Global notification system
+  - FloatingAIButton: AI assistant access button
+
+### Home Page (/)
+- **Purpose**: Landing page with featured content
+- **Components Used**:
+  - HeroSection: Main banner with call-to-action
+  - FeaturedBoxes: Showcase of popular mystery boxes
+  - CategoriesSection: Product categories display
+  - StatsSection: Platform statistics
+  - Navbar: Main navigation
+  - Footer: Site footer
+
+## AUTHENTICATION SYSTEM
+
+### Login Page (/auth/login)
+- **Purpose**: User authentication
+- **Functions**:
+  - Email/password login
+  - Social login options
+  - Password reset link
+  - Account recovery navigation
+
+### Register Page (/auth/register)
+- **Purpose**: New user registration
+- **Functions**:
+  - User registration form
+  - Email verification
+  - Terms acceptance
+  - Account type selection
+
+### Forgot Password (/auth/forgot-password)
+- **Purpose**: Password recovery
+- **Functions**:
+  - Email-based password reset
+  - Security questions
+  - Account verification
+
+### Account Recovery (/auth/account-recovery)
+- **Purpose**: Account recovery assistance
+- **Functions**:
+  - Multiple recovery methods
+  - Security verification
+  - Account restoration
+
+## USER PAGES
+
+### Dashboard (/dashboard)
+- **Purpose**: User dashboard with overview
+- **Functions**:
+  - Account overview
+  - Recent activity
+  - Quick actions
+  - Statistics display
+
+### Profile/Settings (/settings)
+- **Purpose**: User profile management
+- **Functions**:
+  - Profile editing
+  - Account settings
+  - Notification preferences
+  - Privacy settings
+
+### Orders (/orders)
+- **Purpose**: Order history and management
+- **Functions**:
+  - Order history display
+  - Order tracking
+  - Order management
+  - Reordering functionality
+
+### Order Details (/orders/[id])
+- **Purpose**: Individual order details
+- **Functions**:
+  - Order information display
+  - Tracking updates
+  - Communication with seller
+  - Return/refund requests
+
+### Wishlist (/wishlist)
+- **Purpose**: User wishlist management
+- **Functions**:
+  - Wishlist display
+  - Item management
+  - Quick purchase
+  - Sharing functionality
+
+### Messages (/messages)
+- **Purpose**: User messaging system
+- **Functions**:
+  - Message inbox
+  - Conversation management
+  - Real-time messaging
+  - Message history
+
+### Notifications (/notifications)
+- **Purpose**: Notification center
+- **Functions**:
+  - Notification display
+  - Notification management
+  - Settings control
+  - Mark as read/unread
+
+## MARKETPLACE PAGES
+
+### Boxes (/boxes)
+- **Purpose**: Mystery boxes marketplace
+- **Functions**:
+  - Product listing
+  - Filtering and sorting
+  - Search functionality
+  - Category browsing
+
+### Box Details (/boxes/[id])
+- **Purpose**: Individual mystery box details
+- **Functions**:
+  - Product information
+  - Seller information
+  - Purchase options
+  - Reviews and ratings
+
+### Box Edit (/boxes/[id]/edit)
+- **Purpose**: Edit existing mystery boxes
+- **Functions**:
+  - Product editing
+  - Image management
+  - Pricing updates
+  - Inventory management
+
+### Box Order Management (/boxes/[id]/edit/order)
+- **Purpose**: Manage orders for specific boxes
+- **Functions**:
+  - Order processing
+  - Shipping management
+  - Customer communication
+  - Refund handling
+
+### Cart (/cart)
+- **Purpose**: Shopping cart management
+- **Functions**:
+  - Cart display
+  - Quantity management
+  - Price calculation
+  - Checkout navigation
+
+### Checkout (/checkout)
+- **Purpose**: Checkout process
+- **Functions**:
+  - Order summary
+  - Payment processing
+  - Shipping information
+  - Order confirmation
+
+### Checkout with Box ID (/checkout/[boxId])
+- **Purpose**: Direct checkout for specific box
+- **Functions**:
+  - Quick purchase
+  - Pre-filled information
+  - Express checkout
+
+### Sell (/sell)
+- **Purpose**: Sell mystery boxes
+- **Functions**:
+  - Product creation
+  - Image upload
+  - Pricing setup
+  - Category selection
+
+### Seller Profile (/seller/[username])
+- **Purpose**: Seller profile pages
+- **Functions**:
+  - Seller information
+  - Product listings
+  - Reviews and ratings
+  - Contact options
+
+## INFORMATION PAGES
+
+### About (/about)
+- **Purpose**: About the platform
+- **Functions**:
+  - Company information
+  - Mission and vision
+  - Team information
+  - Contact details
+
+### Help (/help)
+- **Purpose**: Help and support
+- **Functions**:
+  - FAQ section
+  - Support articles
+  - Contact support
+  - Search functionality
+
+### Privacy Policy (/privacy)
+- **Purpose**: Privacy information
+- **Functions**:
+  - Privacy policy display
+  - Data usage information
+  - User rights
+  - Contact information
+
+### Terms of Service (/terms)
+- **Purpose**: Terms and conditions
+- **Functions**:
+  - Terms display
+  - User agreements
+  - Legal information
+  - Updates notification
+
+### Community Guidelines (/community-guidelines)
+- **Purpose**: Community rules
+- **Functions**:
+  - Community standards
+  - Behavior guidelines
+  - Reporting procedures
+  - Moderation information
+
+### Cookies Policy (/cookies)
+- **Purpose**: Cookie information
+- **Functions**:
+  - Cookie policy
+  - Cookie management
+  - Privacy settings
+  - User consent
+
+### Refunds (/refunds)
+- **Purpose**: Refund information
+- **Functions**:
+  - Refund policy
+  - Refund process
+  - Requirements
+  - Contact information
+
+### Contact Admin (/contact-admin)
+- **Purpose**: Admin contact
+- **Functions**:
+  - Contact form
+  - Issue reporting
+  - Admin communication
+  - Support tickets
+
+## SPECIAL PAGES
+
+### Forbidden (app/forbidden/page.tsx)
+- **Purpose**: Access denied page
+- **Functions**:
+  - Error display
+  - Navigation options
+  - Contact support
+
+### Not Found (app/not-found/page.tsx)
+- **Purpose**: 404 error page
+- **Functions**:
+  - Error display
+  - Search functionality
+  - Navigation options
+
+### Error (app/error.tsx)
+- **Purpose**: Error handling page
+- **Functions**:
+  - Error display
+  - Error reporting
+  - Recovery options
+
+## AI FEATURES
+
+### Mystery AI (/mystery-ai)
+- **Purpose**: AI assistant interface
+- **Functions**:
+  - Chat interface
+  - Message history
+  - Chat storage
+  - Export/import chats
+  - Quick questions
+  - Page navigation buttons
+  - Typing simulation
+  - Error handling
+
+### Floating AI Button (components/floating-ai-button.tsx)
+- **Purpose**: Quick AI access
+- **Functions**:
+  - Floating button
+  - Quick question input
+  - Session storage
+  - Navigation to AI page
+
+## API ROUTES
+
+### Gemini AI API (app/api/gemini/route.ts)
+- **Purpose**: AI chat functionality
+- **Functions**:
+  - Message processing
+  - Context-aware responses
+  - App-related vs general questions
+  - Response formatting
+  - Error handling
+  - Health check endpoint
+
+### Business by UID API (app/api/get-business-by-uid/route.ts)
+- **Purpose**: Business information retrieval
+- **Functions**:
+  - User business data
+  - Business verification
+  - Data formatting
+
+### Firegram Link Update API (app/api/update-firegram-link/route.ts)
+- **Purpose**: Social media integration
+- **Functions**:
+  - Link updates
+  - Validation
+  - User profile updates
+
+## COMPONENTS
+
+### Layout Components
+
+#### Navbar (components/layout/navbar.tsx)
+- **Purpose**: Main navigation
+- **Functions**:
+  - Navigation menu
+  - User authentication status
+  - Search functionality
+  - Mobile responsive
+  - Theme toggle
+
+#### Footer (components/layout/footer.tsx)
+- **Purpose**: Site footer
+- **Functions**:
+  - Links and navigation
+  - Social media
+  - Copyright information
+  - Contact details
+
+### Home Components
+
+#### Hero Section (components/home/hero-section.tsx)
+- **Purpose**: Main banner
+- **Functions**:
+  - Call-to-action buttons
+  - Featured content
+  - Animation effects
+
+#### Featured Boxes (components/home/featured-boxes.tsx)
+- **Purpose**: Product showcase
+- **Functions**:
+  - Product carousel
+  - Filtering options
+  - Quick actions
+
+#### Categories Section (components/home/categories-section.tsx)
+- **Purpose**: Category display
+- **Functions**:
+  - Category grid
+  - Navigation links
+  - Visual design
+
+#### Stats Section (components/home/stats-section.tsx)
+- **Purpose**: Platform statistics
+- **Functions**:
+  - Statistics display
+  - Animated counters
+  - Visual indicators
+
+### Box Components
+
+#### Mystery Box Card (components/boxes/mystery-box-card.tsx)
+- **Purpose**: Product card display
+- **Functions**:
+  - Product information
+  - Image display
+  - Price information
+  - Quick actions
+
+#### Box Filters (components/boxes/box-filters.tsx)
+- **Purpose**: Product filtering
+- **Functions**:
+  - Filter options
+  - Search functionality
+  - Sorting options
+
+### Dashboard Components
+
+#### Seller Alerts (components/dashboard/seller-alerts.tsx)
+- **Purpose**: Seller notifications
+- **Functions**:
+  - Alert display
+  - Action buttons
+  - Status indicators
+
+### Authentication Components
+
+#### Username Prompt (components/auth/username-prompt.tsx)
+- **Purpose**: Username collection
+- **Functions**:
+  - Username input
+  - Validation
+  - Duplicate checking
+
+### Provider Components
+
+#### Auth Provider (components/providers/auth-provider.tsx)
+- **Purpose**: Authentication state management
+- **Functions**:
+  - User state management
+  - Authentication methods
+  - Session handling
+
+#### Theme Provider (components/providers/theme-provider.tsx)
+- **Purpose**: Theme management
+- **Functions**:
+  - Theme switching
+  - System preference detection
+  - Persistence
+
+### UI Components
+
+#### Loading Spinner (components/ui/loading-spinner.tsx)
+- **Purpose**: Loading indicator
+- **Functions**:
+  - Animated spinner
+  - Customizable size
+
+#### Theme Toggle (components/ui/theme-toggle.tsx)
+- **Purpose**: Theme switcher
+- **Functions**:
+  - Toggle button
+  - Icon display
+  - Theme persistence
+
+#### Toast System (components/ui/toast.tsx, components/ui/toaster.tsx)
+- **Purpose**: Notification system
+- **Functions**:
+  - Toast display
+  - Auto-dismiss
+  - Multiple types
+
+#### Maintenance Check (components/maintenance-check.tsx)
+- **Purpose**: Maintenance mode detection
+- **Functions**:
+  - Status checking
+  - Redirect handling
+  - User notification
+
+## HOOKS
+
+### useCart (hooks/use-cart.tsx)
+- **Purpose**: Shopping cart management
+- **Functions**:
+  - Add/remove items
+  - Quantity management
+  - Total calculation
+  - Persistence
+
+### useWishlist (hooks/use-wishlist.tsx)
+- **Purpose**: Wishlist management
+- **Functions**:
+  - Add/remove items
+  - List management
+  - Persistence
+
+### useMessages (hooks/use-messages.ts)
+- **Purpose**: Message management
+- **Functions**:
+  - Message retrieval
+  - Real-time updates
+  - Message sending
+
+### useNotifications (hooks/use-notifications.ts)
+- **Purpose**: Notification management
+- **Functions**:
+  - Notification retrieval
+  - Mark as read
+  - Real-time updates
+
+### useMysteryBoxes (hooks/use-mystery-boxes.ts)
+- **Purpose**: Product data management
+- **Functions**:
+  - Product fetching
+  - Filtering
+  - Search functionality
+
+### useToast (hooks/use-toast.ts)
+- **Purpose**: Toast notifications
+- **Functions**:
+  - Toast display
+  - Type management
+  - Auto-dismiss
+
+### useMobile (hooks/use-mobile.tsx)
+- **Purpose**: Mobile detection
+- **Functions**:
+  - Responsive behavior
+  - Mobile-specific features
+
+### useChatStorage (hooks/use-chat-storage.ts)
+- **Purpose**: Chat history and storage management
+- **Functions**:
+  - Chat creation and management
+  - Message storage in localStorage
+  - Chat export/import functionality
+  - Current chat tracking
+  - Chat deletion and clearing
+
+## LIBRARIES AND UTILITIES
+
+### Firebase Configuration (lib/firebase.ts, lib/firebase-config.ts)
+- **Purpose**: Firebase setup
+- **Functions**:
+  - Authentication
+  - Firestore database
+  - Storage
+  - Real-time features
+
+### Firebase Admin (lib/firebase-admin.ts)
+- **Purpose**: Server-side Firebase
+- **Functions**:
+  - Admin operations
+  - Server-side authentication
+  - Batch operations
+
+### Firebase Service (lib/firebase-service.ts)
+- **Purpose**: Firebase utilities
+- **Functions**:
+  - Data operations
+  - Error handling
+  - Type safety
+
+### Types (lib/types.ts)
+- **Purpose**: TypeScript definitions
+- **Functions**:
+  - Type definitions
+  - Interface definitions
+  - Type safety
+
+### Utils (lib/utils.ts)
+- **Purpose**: Utility functions
+- **Functions**:
+  - Helper functions
+  - Data formatting
+  - Common operations
+
+### Countries (lib/countries.ts)
+- **Purpose**: Country data
+- **Functions**:
+  - Country lists
+  - Geographic data
+  - Localization
+
+## CONFIGURATION FILES
+
+### Next.js Config (next.config.mjs)
+- **Purpose**: Next.js configuration
+- **Functions**:
+  - Build settings
+  - Environment variables
+  - Feature flags
+
+### Tailwind Config (tailwind.config.ts)
+- **Purpose**: Styling configuration
+- **Functions**:
+  - Theme customization
+  - Color palette
+  - Component styling
+
+### TypeScript Config (tsconfig.json)
+- **Purpose**: TypeScript settings
+- **Functions**:
+  - Compiler options
+  - Type checking
+  - Module resolution
+
+### PostCSS Config (postcss.config.mjs)
+- **Purpose**: CSS processing
+- **Functions**:
+  - Plugin configuration
+  - CSS optimization
+
+### Components Config (components.json)
+- **Purpose**: UI component configuration
+- **Functions**:
+  - Component settings
+  - Theme configuration
+  - Style preferences
+
+## PACKAGE DEPENDENCIES
+
+### Core Dependencies
+- Next.js: React framework
+- React: UI library
+- TypeScript: Type safety
+- Tailwind CSS: Styling
+
+### UI Components
+- Radix UI: Component primitives
+- Lucide React: Icons
+- Sonner: Toast notifications
+
+### Backend Services
+- Firebase: Database and authentication
+- Google Generative AI: AI functionality
+
+### Development Tools
+- ESLint: Code linting
+- PostCSS: CSS processing
+- Autoprefixer: CSS vendor prefixes
+
+## KEY FEATURES SUMMARY
+
+1. **User Authentication**: Complete auth system with multiple providers
+2. **Mystery Box Marketplace**: Product listing, buying, and selling
+3. **Shopping Cart**: Full e-commerce cart functionality
+4. **User Dashboard**: Personalized user experience
+5. **AI Assistant**: Integrated AI chat support
+6. **Real-time Messaging**: User-to-user communication
+7. **Notification System**: Real-time notifications
+8. **Seller Features**: Complete seller management system
+9. **Admin Panel**: Administrative controls
+10. **Responsive Design**: Mobile-first approach
+11. **Theme Support**: Dark/light mode switching
+12. **Internationalization Ready**: Multi-language support structure
+13. **SEO Optimized**: Search engine optimization
+14. **Performance Optimized**: Fast loading and smooth interactions
+15. **Security Features**: Data protection and validation
+
+## INTEGRATION POINTS
+
+- **Payment Processing**: Stripe/other payment gateways
+- **Email Services**: Email notifications and marketing
+- **Analytics**: User behavior tracking
+- **Social Media**: Social sharing and integration
+- **File Storage**: Image and document storage
+- **Real-time Updates**: Live data synchronization
+- **API Endpoints**: RESTful API structure
+- **Error Monitoring**: Error tracking and reporting
+
+## Developer
+
+- The creator,founder,maintenaner of this project is Uzair.
+- The project is open-source and available on https://github.com/uzairdeveloper223/mystery-mart.git.
+- Contributions are welcome and encouraged.
+- The project is maintained by Uzair.

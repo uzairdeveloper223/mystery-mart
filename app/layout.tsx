@@ -8,6 +8,7 @@ import { CartProvider } from "@/hooks/use-cart"
 import { WishlistProvider } from "@/hooks/use-wishlist"
 import { MaintenanceCheck } from "@/components/maintenance-check"
 import { Toaster } from "@/components/ui/toaster"
+import { FloatingAIButton } from "@/components/floating-ai-button"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -16,9 +17,9 @@ export const metadata: Metadata = {
   description:
     "Discover amazing mystery boxes filled with surprises. Buy, sell, and trade mystery boxes with our community.",
   keywords: "mystery boxes, surprise boxes, collectibles, trading, marketplace",
-  authors: [{ name: "Uzair Developer" }],
-  creator: "Uzair Dev",
-  publisher: "Uzair",
+  authors: [{ name: "Muhammad Awais" }],
+  creator: "Muhammad Awais",
+  publisher: "Muhammad Awais",
   robots: "index, follow",
   icons: {
     icon: [
@@ -51,7 +52,7 @@ export const metadata: Metadata = {
     title: "Mystery Mart - Discover Amazing Mystery Boxes",
     description:
       "Discover amazing mystery boxes filled with surprises. Buy, sell, and trade mystery boxes with our community.",
-    creator: "@mughal_x22",
+    creator: "Uzair",
     images: ["/logo.svg"]
   },
     generator: 'Uzair'
@@ -74,6 +75,7 @@ export default function RootLayout({
             </CartProvider>
           </AuthProvider>
           <Toaster />
+          <FloatingAIButton />
         </ThemeProvider>
       </body>
     </html>
