@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Package, Shield, Zap } from "lucide-react"
+import { ArrowRight, Package, Shield, Zap, HelpCircle } from "lucide-react"
 
 export function HeroSection() {
   return (
@@ -62,23 +62,28 @@ export function HeroSection() {
             <div className="mystery-gradient rounded-2xl p-8 transform rotate-3 hover:rotate-0 transition-transform duration-300">
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Electronics Mystery Box</h3>
-                  <span className="rarity-epic px-2 py-1 rounded-full text-xs font-medium border">Epic</span>
+                  <h3 className="font-semibold">Home & Garden Mystery Box</h3>
+                  <span className="rarity-legendary px-2 py-1 rounded-full text-xs font-medium border">legendary</span>
                 </div>
                 <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 rounded-lg flex items-center justify-center">
-                  <Package className="h-12 w-12 text-gray-400" />
+                  <HelpCircle className="h-24 w-24 text-gray-400" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Price:</span>
-                    <span className="font-semibold">$99.99</span>
+                    <span className="font-semibold">$1.0</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Est. Value:</span>
-                    <span className="font-semibold text-green-600">$150-300</span>
+                    <span className="font-semibold text-green-600">$2-4</span>
                   </div>
                 </div>
-                <Button className="w-full mystery-gradient text-white">Reveal Mystery</Button>
+                <Button 
+                  className="w-full mystery-gradient text-white"
+                  onClick={() => window.open('https://mystery-mart-app.vercel.app/boxes/-OWd5F3tTt5dcHH-rRwt', '_blank')}
+                >
+                  Reveal Mystery
+                </Button>
               </div>
             </div>
           </div>
