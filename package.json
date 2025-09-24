@@ -65,7 +65,6 @@
     "vaul": "^0.9.6",
     "zod": "^3.24.1",
     "react-markdown": "^10.1.0"
-
   },
   "devDependencies": {
     "@types/node": "^22",
