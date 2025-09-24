@@ -20,16 +20,16 @@ export function Footer() {
               hunters.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-muted-foreground hover:text-primary">
+              <a href="https://facebook.com/mughal.x22" className="text-muted-foreground hover:text-primary">
                 <Facebook className="h-5 w-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary">
+              <a href="https://x.com/uzairxdev223" className="text-muted-foreground hover:text-primary">
                 <Twitter className="h-5 w-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary">
+              <a href="https://instagram.com/mughal_x22" className="text-muted-foreground hover:text-primary">
                 <Instagram className="h-5 w-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary">
+              <a href="https://youtube.com/@mughal_x22" className="text-muted-foreground hover:text-primary">
                 <Youtube className="h-5 w-5" />
               </a>
             </div>
