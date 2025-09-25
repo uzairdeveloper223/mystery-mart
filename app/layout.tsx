@@ -17,9 +17,9 @@ export const metadata: Metadata = {
   description:
     "Discover amazing mystery boxes filled with surprises. Buy, sell, and trade mystery boxes with our community.",
   keywords: "mystery boxes, surprise boxes, collectibles, trading, marketplace",
-  authors: [{ name: "Muhammad Awais" }],
-  creator: "Muhammad Awais",
-  publisher: "Muhammad Awais",
+  authors: [{ name: "Uzair" }],
+  creator: "Uzair",
+  publisher: "Uzair",
   robots: "index, follow",
   icons: {
     icon: [
