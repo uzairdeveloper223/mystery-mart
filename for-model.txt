@@ -316,6 +316,7 @@
   - User business data
   - Business verification
   - Data formatting
+  - The firegram uses it to link user account to Firegram
 
 ### Firegram Link Update API (app/api/update-firegram-link/route.ts)
 - **Purpose**: Social media integration
@@ -323,6 +324,12 @@
   - Link updates
   - Validation
   - User profile updates
+  - MysteryMart use this to update the user info after linking their firegram Account
+
+### How to link Firegram to MysteryMart
+- If a User want to link their firegram account they will need to do the steps below
+- They need to make an account on mystery mart(if not already you must not meation this if they alerady have one) and on firegram "https://firegram-social-app.vercel.app/" then register or sign up
+- then go to their profile page and click edit profile and scrolldown at their they will find account linking , upgrade to advanced user or upgrade to verified user 
 
 ## COMPONENTS
 
