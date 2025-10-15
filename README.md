@@ -1,6 +1,7 @@
 # Mystery Mart 🎁
 
 A modern, secure marketplace for buying, selling, and trading mystery boxes filled with exciting surprises. Connect with collectors, discover unique treasures, and build a thriving community around the art of surprise.
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/uzairdeveloper223/mystery-mart)
 
 ## ✨ Key Features
 
